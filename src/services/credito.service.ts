@@ -1,5 +1,6 @@
 import { CreditoModel } from '../models/credito.model';
 import { ICrearCredito, IRegistrarAbono } from '../interfaces/credito.interface';
+import { EmailService } from './email.service';
 
 export class CreditoService {
 
@@ -42,6 +43,27 @@ export class CreditoService {
     if (!credito) throw new Error('Crédito no encontrado');
     if (credito.estado !== 'pendiente') throw new Error('Solo se pueden rechazar créditos pendientes');
     await CreditoModel.rechazar(id);
+
+    if (credito.id_cliente) {
+      const correo = await CreditoModel.getClienteEmail(credito.id_cliente);
+      console.log('[rechazar] id_cliente:', credito.id_cliente, '| correo encontrado:', correo);
+      if (correo) {
+        console.log('[rechazar] Enviando email de rechazo a:', correo);
+        EmailService.enviarCreditoRechazado(
+          correo,
+          credito.nombre_cliente,
+          credito.productos ?? [],
+          credito.monto_total,
+          credito.plazo
+        ).then(() => console.log('[rechazar] Email enviado OK'))
+         .catch((err) => console.error('[rechazar] Error email:', err?.message));
+      } else {
+        console.log('[rechazar] No se encontró correo para el cliente');
+      }
+    } else {
+      console.log('[rechazar] Crédito sin id_cliente (creado por admin)');
+    }
+
     return { mensaje: 'Solicitud rechazada' };
   }
 

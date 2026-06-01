@@ -10,10 +10,13 @@ export const iniciarCronJobs = () => {
   cron.schedule('*/5 * * * *', async () => {
     try {
       const [reservas] = await pool.execute<RowDataPacket[]>(
-        `SELECT id_reserva, id_barbero
-         FROM reserva
-         WHERE estado IN ('pendiente', 'confirmada')
-         AND TIMESTAMP(fecha, hora) + INTERVAL 55 MINUTE < NOW()`
+        `SELECT r.id_reserva, r.id_barbero
+         FROM reserva r
+         LEFT JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+         LEFT JOIN servicio s ON s.id_servicio = rs.id_servicio
+         WHERE r.estado IN ('pendiente', 'confirmada')
+         GROUP BY r.id_reserva, r.id_barbero, r.fecha, r.hora
+         HAVING TIMESTAMP(r.fecha, r.hora) + INTERVAL COALESCE(SUM(s.duracion), 60) MINUTE + INTERVAL 5 HOUR < NOW()`
       );
 
       for (const reserva of reservas) {

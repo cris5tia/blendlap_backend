@@ -46,6 +46,16 @@ export class ReservaService {
       throw new Error('El barbero no está disponible en esa fecha y hora');
     }
 
+    // Diagnóstico: ver qué hay en la DB antes de insertar
+    const [debugRows] = await pool.execute<any[]>(
+      `SELECT id_reserva, id_cliente, estado FROM reserva
+       WHERE id_barbero = ? AND fecha = ? AND hora = ?`,
+      [data.id_barbero, data.fecha, data.hora]
+    );
+    if (debugRows.length > 0) {
+      console.warn('[RESERVA] Hay filas bloqueando el slot:', JSON.stringify(debugRows));
+    }
+
     try {
       const id_reserva = await ReservaModel.create(data);
       return await ReservaModel.findById(id_reserva);

@@ -157,10 +157,10 @@ export class CreditoModel {
     }
   }
 
-  // ─── Rechazar → elimina registro ─────────────────────────
+  // ─── Rechazar → marca como rechazado ─────────────────────
   static async rechazar(id_credito: number): Promise<void> {
     await pool.execute(
-      `DELETE FROM credito WHERE id_credito = ? AND estado = 'pendiente'`,
+      `UPDATE credito SET estado = 'rechazado' WHERE id_credito = ? AND estado = 'pendiente'`,
       [id_credito]
     );
   }
@@ -253,6 +253,15 @@ export class CreditoModel {
     return { ...credito[0], productos, abonos };
   }
 
+  // ─── Email del cliente ────────────────────────────────────
+  static async getClienteEmail(id_cliente: number): Promise<string | null> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT correo_electronico FROM usuario_rol WHERE id_usuario = ?`,
+      [id_cliente]
+    );
+    return (rows as any)[0]?.correo_electronico ?? null;
+  }
+
   // ─── Vencidos (cron) ──────────────────────────────────────
   static async actualizarVencidos(): Promise<void> {
     await pool.execute(
@@ -262,11 +271,31 @@ export class CreditoModel {
        AND saldo_pendiente > 0`
     );
   }
-  static async findByCliente(id_cliente: number): Promise<ICredito[]> {
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT * FROM credito WHERE id_cliente = ? ORDER BY fecha_creacion DESC`,
-    [id_cliente]
-  );
-  return rows as ICredito[];
-}
+  static async findByCliente(id_cliente: number): Promise<any[]> {
+    const [creditos] = await pool.execute<RowDataPacket[]>(
+      `SELECT c.*,
+         GROUP_CONCAT(p.nombre_producto SEPARATOR ', ') AS productos_nombres
+       FROM credito c
+       LEFT JOIN credito_producto cp ON c.id_credito = cp.id_credito
+       LEFT JOIN producto p ON cp.id_producto = p.id_producto
+       WHERE c.id_cliente = ?
+       GROUP BY c.id_credito
+       ORDER BY c.fecha_creacion DESC`,
+      [id_cliente]
+    );
+
+    const result = [];
+    for (const credito of creditos) {
+      const [productos] = await pool.execute<RowDataPacket[]>(
+        `SELECT cp.id_producto, cp.cantidad, cp.precio_unitario, cp.subtotal,
+                p.nombre_producto, p.imagen, p.codigo_producto
+         FROM credito_producto cp
+         JOIN producto p ON cp.id_producto = p.id_producto
+         WHERE cp.id_credito = ?`,
+        [credito.id_credito]
+      );
+      result.push({ ...credito, productos });
+    }
+    return result;
+  }
 }

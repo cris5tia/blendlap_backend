@@ -88,6 +88,30 @@ export class AuthModel {
         return result.affectedRows > 0;
     }
 
+  static async obtenerPerfil(id: number): Promise<any> {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT id_usuario, nombre, apellido, correo_electronico, telefono, foto, rol FROM usuario_rol WHERE id_usuario = ?',
+      [id]
+    );
+    return rows[0] || null;
+  }
+
+  static async actualizarPerfil(id: number, data: { nombre?: string; apellido?: string; telefono?: string; foto?: string | null }): Promise<boolean> {
+    const campos: string[] = [];
+    const valores: any[] = [];
+    if (data.nombre !== undefined) { campos.push('nombre = ?'); valores.push(data.nombre); }
+    if (data.apellido !== undefined) { campos.push('apellido = ?'); valores.push(data.apellido); }
+    if (data.telefono !== undefined) { campos.push('telefono = ?'); valores.push(data.telefono); }
+    if (data.foto !== undefined) { campos.push('foto = ?'); valores.push(data.foto); }
+    if (campos.length === 0) return false;
+    valores.push(id);
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE usuario_rol SET ${campos.join(', ')} WHERE id_usuario = ?`,
+      valores
+    );
+    return result.affectedRows > 0;
+  }
+
     // Obtener todos los usuarios
     static async findAll(): Promise<IUsuarioRol[]> {
         const [rows] = await pool.execute<RowDataPacket[]>(

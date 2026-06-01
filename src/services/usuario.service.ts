@@ -1,5 +1,6 @@
 import { AuthModel } from '../models/auth.model';
 import { UsuarioModel } from '../models/usuario.model';
+import { eliminarArchivo } from '../utils/files';
 
 export class UsuarioService {
 
@@ -48,6 +49,10 @@ export class UsuarioService {
     descripcion?: string;
     foto?: string;
   }) {
+    if (data.foto) {
+      const barberoActual = await UsuarioModel.findById(id);
+      if (barberoActual?.foto) eliminarArchivo('barberos', barberoActual.foto);
+    }
     return await UsuarioModel.actualizarBarbero(id, data);
   }
 

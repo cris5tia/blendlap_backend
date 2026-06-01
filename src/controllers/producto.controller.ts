@@ -40,36 +40,33 @@ export class ProductoController {
   }
 
   static async create(req: Request, res: Response): Promise<void> {
-  try {
-    const imagen = req.file ? req.file.filename : null;
-    const data = {
-      ...req.body,
-      precio: Number(req.body.precio),
-      stock:  Number(req.body.stock) || 0,
-      imagen
-    };
-    const producto = await ProductoService.create(data);
-    res.status(201).json({ ok: true, data: producto });
-  } catch (error: any) {
-    res.status(400).json({ ok: false, mensaje: error.message });
+    try {
+      const producto = await ProductoService.create({
+        ...req.body,
+        precio: Number(req.body.precio),
+        stock:  Number(req.body.stock) || 0,
+        imagen: req.body.imagen || null
+      });
+      res.status(201).json({ ok: true, data: producto });
+    } catch (error: any) {
+      res.status(400).json({ ok: false, mensaje: error.message });
+    }
   }
-}
 
   static async update(req: Request, res: Response): Promise<void> {
-  try {
-    const imagen = req.file ? req.file.filename : undefined;
-    const data: any = {
-      ...req.body,
-      precio: req.body.precio !== undefined ? Number(req.body.precio) : undefined,
-      stock:  req.body.stock  !== undefined ? Number(req.body.stock)  : undefined,
-    };
-    if (imagen) data.imagen = imagen;
-    const producto = await ProductoService.update(parseInt(req.params.id), data);
-    res.status(200).json({ ok: true, data: producto });
-  } catch (error: any) {
-    res.status(400).json({ ok: false, mensaje: error.message });
+    try {
+      const id = parseInt(req.params.id);
+      const data: any = {
+        ...req.body,
+        precio: req.body.precio !== undefined ? Number(req.body.precio) : undefined,
+        stock:  req.body.stock  !== undefined ? Number(req.body.stock)  : undefined,
+      };
+      const producto = await ProductoService.update(id, data);
+      res.status(200).json({ ok: true, data: producto });
+    } catch (error: any) {
+      res.status(400).json({ ok: false, mensaje: error.message });
+    }
   }
-}
 
   static async delete(req: Request, res: Response): Promise<void> {
     try {

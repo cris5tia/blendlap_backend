@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ResenaModel } from '../models/resena.model';
 import { ReservaModel } from '../models/reserva.model';
+import { pool } from '../database/connection';
 
 export class ResenaController {
 
@@ -41,8 +42,30 @@ export class ResenaController {
         return;
       }
 
-      if (reserva.estado !== 'completada') {
-        res.status(400).json({ ok: false, mensaje: 'Solo puedes reseñar reservas completadas' });
+      const [estadoRows] = await pool.execute<any[]>(
+        `SELECT
+          r.estado,
+          DATE_ADD(
+            TIMESTAMP(r.fecha, r.hora),
+            INTERVAL COALESCE(SUM(s.duracion), 30) MINUTE
+          ) <= NOW() AS ya_termino
+         FROM reserva r
+         LEFT JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+         LEFT JOIN servicio s ON s.id_servicio = rs.id_servicio
+         WHERE r.id_reserva = ?
+         GROUP BY r.id_reserva`,
+        [id_reserva]
+      );
+      const estadoReserva = estadoRows[0];
+      const yaTermino = Number(estadoReserva?.ya_termino) === 1;
+
+      if (reserva.estado === 'cancelada') {
+        res.status(400).json({ ok: false, mensaje: 'No puedes reseñar citas canceladas' });
+        return;
+      }
+
+      if (!yaTermino && reserva.estado !== 'completada') {
+        res.status(400).json({ ok: false, mensaje: 'Solo puedes reseñar citas que ya finalizaron' });
         return;
       }
 

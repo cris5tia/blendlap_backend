@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { ServicioController } from '../controllers/servicio.controller';
 import { verificarToken, verificarRol } from '../middlewares/auth.middleware';
-import { uploadServicio } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -10,7 +9,6 @@ router.get('/', ServicioController.getAll);
 router.get('/:id', ServicioController.getById);
 
 // Rutas solo admin
-router.post('/upload-imagen', verificarToken, verificarRol('admin'), uploadServicio.single('imagen'), ServicioController.uploadImagen);
 router.post('/', verificarToken, verificarRol('admin'), ServicioController.create);
 router.put('/:id', verificarToken, verificarRol('admin'), ServicioController.update);
 router.delete('/:id', verificarToken, verificarRol('admin'), ServicioController.delete);

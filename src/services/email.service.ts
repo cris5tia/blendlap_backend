@@ -1,14 +1,30 @@
 import nodemailer from 'nodemailer';
 
+// Las App Passwords de Gmail se muestran con espacios (xxxx xxxx xxxx xxxx)
+// pero deben usarse sin ellos
+const EMAIL_PASS = (process.env.EMAIL_PASS || '').replace(/\s/g, '');
+const EMAIL_USER = process.env.EMAIL_USER || '';
+
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
   },
 });
 
-const FROM = process.env.EMAIL_FROM || `"Blendlap Barbería" <${process.env.EMAIL_USER}>`;
+// Verifica la conexión SMTP al arrancar el servidor
+transporter.verify((error) => {
+  if (error) {
+    console.error('[EmailService] Conexión SMTP fallida:', error.message);
+  } else {
+    console.log('[EmailService] SMTP listo para enviar correos ✓');
+  }
+});
+
+const FROM = `"Blendlap Barbería" <${EMAIL_USER}>`;
 
 // Cada dígito va en su propio <td> dentro de un <tr> — nunca se parte en móvil
 function buildDigitCells(codigo: string, size: 'sm' | 'lg'): string {
@@ -249,6 +265,110 @@ export class EmailService {
       from: FROM,
       to: correo,
       subject: '🔑 Tu código de recuperación — Blendlap Barbería',
+      html: buildEmail(content),
+    });
+  }
+
+  // ── Crédito rechazado ──────────────────────────────────────────────────────
+  static async enviarCreditoRechazado(
+    correo: string,
+    nombre: string,
+    productos: Array<{ nombre_producto: string; cantidad: number; precio_unitario: number; subtotal: number }>,
+    monto_total: number,
+    plazo: string
+  ): Promise<void> {
+    const plazoLabel: Record<string, string> = {
+      '1_semana':    '1 Semana (7 días)',
+      '1_quincena':  '1 Quincena (15 días)',
+      '2_quincenas': '2 Quincenas (30 días)',
+      '1_mes':       '1 Mes',
+    };
+
+    const formatCOP = (v: number) =>
+      new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v);
+
+    const filaProductos = productos.map(p => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);
+                   color:rgba(255,255,255,0.75);font-size:13px;">
+          ${p.nombre_producto}
+          <span style="color:rgba(255,255,255,0.35);font-size:11px;"> x${p.cantidad}</span>
+        </td>
+        <td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);
+                   color:#fbc447;font-size:13px;font-weight:700;text-align:right;">
+          ${formatCOP(p.subtotal)}
+        </td>
+      </tr>`).join('');
+
+    const content = `
+      <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 20px;">
+        <tr>
+          <td align="center" style="
+            width:60px;height:60px;line-height:60px;
+            background:rgba(239,68,68,0.12);
+            border:2px solid rgba(239,68,68,0.3);
+            border-radius:50%;font-size:24px;
+            text-align:center;">
+            ✕
+          </td>
+        </tr>
+      </table>
+
+      <h2 style="color:#ffffff;font-size:20px;font-weight:800;
+                 margin:0 0 8px;text-align:center;">
+        Tu solicitud de crédito no fue aprobada
+      </h2>
+      <p style="color:rgba(255,255,255,0.45);font-size:13px;
+                margin:0 0 28px;line-height:1.7;text-align:center;">
+        Hola <strong style="color:#fbc447;">${nombre}</strong>,
+        lamentablemente tu solicitud de crédito fue revisada y no pudo ser aprobada en esta ocasión.
+        Puedes visitar nuestra barbería para más información o intentarlo nuevamente más adelante.
+      </p>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.07);margin-bottom:24px;"></div>
+
+      <p style="color:rgba(255,255,255,0.3);font-size:10px;font-weight:700;
+                margin:0 0 14px;text-transform:uppercase;letter-spacing:2.5px;">
+        Detalle de tu solicitud
+      </p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="margin-bottom:16px;">
+        ${filaProductos}
+        <tr>
+          <td style="padding:12px 0 0;color:rgba(255,255,255,0.5);
+                     font-size:12px;font-weight:700;text-transform:uppercase;
+                     letter-spacing:1px;">
+            Total solicitado
+          </td>
+          <td style="padding:12px 0 0;color:#fbc447;font-size:18px;
+                     font-weight:900;text-align:right;">
+            ${formatCOP(monto_total)}
+          </td>
+        </tr>
+      </table>
+
+      <div style="background:rgba(255,255,255,0.04);border-radius:8px;
+                  padding:12px 16px;margin-bottom:24px;">
+        <span style="color:rgba(255,255,255,0.35);font-size:11px;text-transform:uppercase;
+                     letter-spacing:1px;">Plazo solicitado:</span>
+        <span style="color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;
+                     margin-left:8px;">${plazoLabel[plazo] ?? plazo}</span>
+      </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.07);margin-bottom:20px;"></div>
+
+      <p style="color:rgba(255,255,255,0.3);font-size:12px;
+                line-height:1.8;margin:0;text-align:center;">
+        Si tienes preguntas, visítanos o escríbenos.
+        Estaremos encantados de ayudarte a encontrar la mejor opción.
+      </p>
+    `;
+
+    await transporter.sendMail({
+      from: FROM,
+      to: correo,
+      subject: 'Tu solicitud de crédito en Blendlap — Respuesta',
       html: buildEmail(content),
     });
   }

@@ -78,6 +78,8 @@ export class ReservaModel {
         return rows.map((r: any) => ({
             ...r,
             tiene_resena: r.tiene_resena === 1,
+            duracion_total: Number(r.duracion_total) || 0,
+            precio_total: Number(r.precio_total) || 0,
             servicios: r.servicios ? r.servicios.split(',').map(Number) : []
         })) as IReserva[];
     }
@@ -127,6 +129,21 @@ export class ReservaModel {
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
+
+            // 0. Eliminar reservas canceladas en ese slot para liberar el UNIQUE constraint
+            await connection.execute(
+                `DELETE rs FROM reserva_servicio rs
+                 INNER JOIN reserva r ON rs.id_reserva = r.id_reserva
+                 WHERE r.id_barbero = ? AND r.fecha = ? AND r.hora = ?
+                   AND r.estado = 'cancelada'`,
+                [data.id_barbero, data.fecha, data.hora]
+            );
+            await connection.execute(
+                `DELETE FROM reserva
+                 WHERE id_barbero = ? AND fecha = ? AND hora = ?
+                   AND estado = 'cancelada'`,
+                [data.id_barbero, data.fecha, data.hora]
+            );
 
             // 1. Insertar reserva
             const [result] = await connection.execute<ResultSetHeader>(

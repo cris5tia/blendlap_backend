@@ -81,19 +81,28 @@ export class ProductoModel {
     return result.affectedRows > 0;
   }
 
-  // Solo inserta en inventario_movimiento
-  // El trigger trg_actualizar_stock actualiza el stock automáticamente
   static async registrarMovimiento(id_usuario: number, data: ICrearMovimiento): Promise<void> {
+    const [stockRows] = await pool.execute<RowDataPacket[]>(
+      'SELECT stock FROM producto WHERE id_producto = ?',
+      [data.id_producto]
+    );
+    const stockActual = (stockRows[0] as any)?.stock ?? 0;
+    const stockResultante = data.tipo_movimiento === 'Entrada'
+      ? stockActual + data.cantidad
+      : stockActual - data.cantidad;
+
     await pool.execute(
-      `INSERT INTO inventario_movimiento (id_producto, id_usuario, tipo_movimiento, cantidad)
-       VALUES (?, ?, ?, ?)`,
-      [data.id_producto, id_usuario, data.tipo_movimiento, data.cantidad]
+      `INSERT INTO inventario_movimiento
+        (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, stock_resultante)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [data.id_producto, id_usuario, data.tipo_movimiento, data.cantidad, data.motivo || null, stockResultante]
     );
   }
 
   static async getMovimientos(id_producto: number) {
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT im.*,
+        im.fecha_actualizacion AS fecha,
         p.nombre_producto,
         CONCAT(u.nombre, ' ', u.apellido) AS nombre_usuario
        FROM inventario_movimiento im

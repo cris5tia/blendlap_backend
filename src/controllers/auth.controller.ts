@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 
+
 export class AuthController {
 
     // POST /api/auth/login
@@ -150,4 +151,33 @@ export class AuthController {
     res.status(401).json({ ok: false, mensaje: error.message });
   }
 }
+
+    // GET /api/auth/mi-perfil
+    static async obtenerMiPerfil(req: Request, res: Response): Promise<void> {
+        try {
+            const id_usuario = req.usuario!.id_usuario;
+            const perfil = await AuthService.obtenerPerfil(id_usuario);
+            res.status(200).json({ ok: true, data: perfil });
+        } catch (error: any) {
+            res.status(404).json({ ok: false, mensaje: error.message });
+        }
+    }
+
+    // PUT /api/auth/mi-perfil
+    static async actualizarMiPerfil(req: Request, res: Response): Promise<void> {
+        try {
+            const id_usuario = req.usuario!.id_usuario;
+            const body = req.body || {};
+            const data: any = {};
+            if (body.nombre?.trim()) data.nombre = body.nombre.trim();
+            if (body.apellido?.trim()) data.apellido = body.apellido.trim();
+            if (body.telefono !== undefined) data.telefono = (body.telefono || '').trim();
+            if (body.eliminarFoto === 'true') data.foto = null;
+            else if (req.file) data.foto = req.file.filename;
+            const perfil = await AuthService.actualizarPerfil(id_usuario, data);
+            res.status(200).json({ ok: true, data: perfil });
+        } catch (error: any) {
+            res.status(500).json({ ok: false, mensaje: error.message });
+        }
+    }
 }

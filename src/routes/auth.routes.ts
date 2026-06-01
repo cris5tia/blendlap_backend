@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
 import { verificarToken } from '../middlewares/auth.middleware';
+import { uploadCliente } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -16,4 +17,6 @@ router.post('/logout', verificarToken, (req, res) => {
   res.status(200).json({ ok: true, mensaje: 'Sesión cerrada correctamente' });
 });
 router.post('/google', AuthController.loginConGoogle);
+router.get('/mi-perfil', verificarToken, AuthController.obtenerMiPerfil);
+router.put('/mi-perfil', verificarToken, uploadCliente.single('foto'), AuthController.actualizarMiPerfil);
 export default router;

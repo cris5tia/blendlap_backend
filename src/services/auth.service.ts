@@ -5,6 +5,7 @@ import { ILoginPayload, IRegistroPayload, IJwtPayload } from '../interfaces/auth
 import { pool } from '../database/connection';
 import { OAuth2Client } from 'google-auth-library';
 import { EmailService } from './email.service';
+import { eliminarArchivo } from '../utils/files';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -58,7 +59,8 @@ export class AuthService {
                 nombre: usuario.nombre,
                 apellido: usuario.apellido,
                 correo_electronico: usuario.correo_electronico,
-                rol: usuario.rol
+                rol: usuario.rol,
+                foto: usuario.foto || null
             }
         };
     }
@@ -199,6 +201,21 @@ export class AuthService {
         return await AuthService.registro(pending.payload);
     }
 
+    static async obtenerPerfil(id_usuario: number) {
+        const perfil = await AuthModel.obtenerPerfil(id_usuario);
+        if (!perfil) throw new Error('Usuario no encontrado');
+        return perfil;
+    }
+
+    static async actualizarPerfil(id_usuario: number, data: { nombre?: string; apellido?: string; telefono?: string; foto?: string | null }) {
+        if (data.foto !== undefined) {
+            const perfilActual = await AuthModel.obtenerPerfil(id_usuario);
+            if (perfilActual?.foto) eliminarArchivo('clientes', perfilActual.foto);
+        }
+        await AuthModel.actualizarPerfil(id_usuario, data);
+        return await AuthModel.obtenerPerfil(id_usuario);
+    }
+
     static async loginConGoogle(token: string) {
         // 1. Verificar token con Google
         const ticket = await client.verifyIdToken({
@@ -274,7 +291,8 @@ export class AuthService {
                 nombre: usuario.nombre,
                 apellido: usuario.apellido,
                 correo_electronico: usuario.correo_electronico,
-                rol: usuario.rol
+                rol: usuario.rol,
+                foto: usuario.foto || null
             }
         };
     }
