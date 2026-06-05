@@ -9,18 +9,42 @@ const poolOptions: PoolOptions = {
   database: process.env.DB_NAME || 'bdblendlap',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
+  connectTimeout: 10000,
 };
 
 export const pool: Pool = mysql.createPool(poolOptions);
 
 export const testConnection = async (): Promise<void> => {
   try {
-    const connection = await pool.getConnection();
-    logger.info('Conexión a MySQL establecida correctamente');
-    connection.release();
+    // Calentar el pool con múltiples conexiones simultáneas
+    const warmup = await Promise.all(
+      Array.from({ length: 3 }, () => pool.getConnection())
+    );
+    warmup.forEach(c => c.release());
+    logger.info('Conexión a MySQL establecida correctamente (pool calentado)');
+
+    // Aplicar índices de rendimiento (IF NOT EXISTS → seguro de re-ejecutar)
+    await applyIndexes();
   } catch (error) {
     logger.error(`Error al conectar con MySQL: ${error}`);
     process.exit(1);
   }
 };
+
+async function applyIndexes(): Promise<void> {
+  const indexes: string[] = [
+    'ALTER TABLE reserva ADD INDEX IF NOT EXISTS idx_reserva_cliente (id_cliente)',
+    'ALTER TABLE reserva ADD INDEX IF NOT EXISTS idx_reserva_barbero_fecha (id_barbero, fecha)',
+    'ALTER TABLE reserva ADD INDEX IF NOT EXISTS idx_reserva_barbero_estado (id_barbero, fecha, estado)',
+    'ALTER TABLE reserva_servicio ADD INDEX IF NOT EXISTS idx_rs_reserva (id_reserva)',
+    'ALTER TABLE resena ADD INDEX IF NOT EXISTS idx_resena_reserva (id_reserva)',
+    'ALTER TABLE horario_excepcion ADD INDEX IF NOT EXISTS idx_excepcion_usuario_dia (id_usuario, dia_semana)',
+  ];
+  for (const sql of indexes) {
+    try { await pool.execute(sql); } catch (_) { /* índice ya existe */ }
+  }
+  logger.info('Índices de rendimiento verificados');
+}

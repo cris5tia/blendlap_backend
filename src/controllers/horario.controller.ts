@@ -5,12 +5,9 @@ export class HorarioController {
 
   static async getHorarioBarberia(req: Request, res: Response): Promise<void> {
     try {
-        console.log('🟡 getHorarioBarberia iniciado');
         const horario = await HorarioModel.getHorarioBarberia();
-        console.log('🟡 horario obtenido:', horario.length);
         res.status(200).json({ ok: true, data: horario });
     } catch (error: any) {
-        console.log('🔴 error horario:', error.message);
         res.status(500).json({ ok: false, mensaje: error.message });
     }
 }
@@ -40,6 +37,21 @@ export class HorarioController {
       const id_usuario = req.usuario!.id_usuario;
       const id = await HorarioModel.createExcepcion({ ...req.body, id_usuario });
       res.status(201).json({ ok: true, id_excepcion: id });
+    } catch (error: any) {
+      res.status(400).json({ ok: false, mensaje: error.message });
+    }
+  }
+
+  static async updateExcepcion(req: Request, res: Response): Promise<void> {
+    try {
+      const id_usuario   = req.usuario!.id_usuario;
+      const id_excepcion = parseInt(req.params.id);
+      const actualizado  = await HorarioModel.updateExcepcion(id_excepcion, id_usuario, req.body);
+      if (!actualizado) {
+        res.status(404).json({ ok: false, mensaje: 'Excepción no encontrada' });
+        return;
+      }
+      res.status(200).json({ ok: true, mensaje: 'Excepción actualizada' });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });
     }

@@ -48,6 +48,25 @@ export class HorarioModel {
     return result.insertId;
   }
 
+  static async updateExcepcion(id_excepcion: number, id_usuario: number, data: Partial<IHorarioExcepcion>): Promise<boolean> {
+    const campos: string[] = [];
+    const valores: any[] = [];
+
+    if (data.dia_semana  !== undefined) { campos.push('dia_semana = ?');  valores.push(data.dia_semana); }
+    if (data.hora_inicio !== undefined) { campos.push('hora_inicio = ?'); valores.push(data.hora_inicio); }
+    if (data.hora_fin    !== undefined) { campos.push('hora_fin = ?');    valores.push(data.hora_fin); }
+    if (data.motivo      !== undefined) { campos.push('motivo = ?');      valores.push(data.motivo); }
+
+    if (campos.length === 0) return false;
+    valores.push(id_excepcion, id_usuario);
+
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE horario_excepcion SET ${campos.join(', ')} WHERE id_excepcion = ? AND id_usuario = ?`,
+      valores
+    );
+    return result.affectedRows > 0;
+  }
+
   static async deleteExcepcion(id_excepcion: number, id_usuario: number): Promise<boolean> {
     const [result] = await pool.execute<ResultSetHeader>(
       'DELETE FROM horario_excepcion WHERE id_excepcion = ? AND id_usuario = ?',

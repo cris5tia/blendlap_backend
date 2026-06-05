@@ -35,14 +35,15 @@ export const iniciarCronJobs = () => {
   });
 
 
+  // Créditos vencidos — cada día a las 8am (corre aunque el admin no esté en la app)
+  cron.schedule('0 8 * * *', async () => {
+    try {
+      await CreditoService.actualizarVencidos();
+      logger.info('[CRON] Créditos vencidos actualizados');
+    } catch (error) {
+      logger.error(`[CRON] Error actualizando vencidos: ${error}`);
+    }
+  });
+
   logger.info('Cron jobs iniciados');
 };
-// Créditos vencidos — cada día a las 8am
-cron.schedule('0 8 * * *', async () => {
-  try {
-    await CreditoService.actualizarVencidos();
-    console.log('[CRON] Créditos vencidos actualizados');
-  } catch (error) {
-    console.error('[CRON] Error actualizando vencidos:', error);
-  }
-});

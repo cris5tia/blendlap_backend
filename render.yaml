@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: blendlap-backend
+    runtime: node
+    rootDir: .
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # Variables que debes configurar manualmente en Render:
+      # DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+      # JWT_SECRET, JWT_EXPIRES_IN
+      # GOOGLE_CLIENT_ID
+      # EMAIL_USER, EMAIL_PASS
+      # CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+      # WOMPI_PUBLIC_KEY, WOMPI_PRIVATE_KEY
+      # FRONTEND_URL  ← URL de Vercel (ej: https://blendlap.vercel.app)

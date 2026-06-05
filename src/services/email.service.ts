@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import logger from '../utils/logger';
 
 // Las App Passwords de Gmail se muestran con espacios (xxxx xxxx xxxx xxxx)
 // pero deben usarse sin ellos
@@ -18,9 +19,9 @@ const transporter = nodemailer.createTransport({
 // Verifica la conexión SMTP al arrancar el servidor
 transporter.verify((error) => {
   if (error) {
-    console.error('[EmailService] Conexión SMTP fallida:', error.message);
+    logger.error(`[EmailService] Conexión SMTP fallida: ${error.message}`);
   } else {
-    console.log('[EmailService] SMTP listo para enviar correos ✓');
+    logger.info('[EmailService] SMTP listo para enviar correos');
   }
 });
 

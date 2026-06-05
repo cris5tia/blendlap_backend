@@ -6,7 +6,7 @@ export class VentaModel {
 
     static async findAll(): Promise<IVenta[]> {
         const [rows] = await pool.execute<RowDataPacket[]>(
-            `SELECT v.*, 
+            `SELECT v.*,
         CONCAT(u.nombre, ' ', u.apellido) AS nombre_cajero
        FROM venta v
        JOIN usuario_rol u ON v.id_cajero = u.id_usuario
@@ -27,7 +27,7 @@ export class VentaModel {
         if (rows.length === 0) return null;
 
         const [detalles] = await pool.execute<RowDataPacket[]>(
-            `SELECT dv.*, p.nombre_producto, p.codigo_producto
+            `SELECT dv.*, p.nombre_producto, p.codigo_producto, p.imagen
        FROM detalle_venta dv
        JOIN producto p ON dv.id_producto = p.id_producto
        WHERE dv.id_venta = ?`,
@@ -138,13 +138,39 @@ export class VentaModel {
             [fecha]
         );
 
+        // Abonos de créditos del día
+        const [abonos] = await pool.execute<RowDataPacket[]>(
+            `SELECT
+        ca.id_abono,
+        ca.monto          AS abono_monto,
+        ca.metodo_pago    AS abono_metodo,
+        ca.fecha          AS abono_fecha,
+        c.nombre_cliente,
+        c.monto_total,
+        c.saldo_pendiente,
+        c.estado          AS credito_estado,
+        GROUP_CONCAT(p.nombre_producto SEPARATOR ', ') AS productos_nombres
+       FROM credito_abono ca
+       JOIN credito c ON ca.id_credito = c.id_credito
+       LEFT JOIN credito_producto cp ON c.id_credito = cp.id_credito
+       LEFT JOIN producto p ON cp.id_producto = p.id_producto
+       WHERE DATE(ca.fecha) = ?
+       GROUP BY ca.id_abono
+       ORDER BY ca.fecha DESC`,
+            [fecha]
+        );
+
+        const total_abonado_hoy = (abonos as any[]).reduce((s: number, a: any) => s + Number(a.abono_monto || 0), 0);
+
         return {
             fecha,
             total_ventas: totales[0].total_ventas,
             total_ingresos: totales[0].total_ingresos || 0,
             por_metodo_pago: porMetodo,
             comisiones_barberos: comisiones,
-            servicios_del_dia: servicios
+            servicios_del_dia: servicios,
+            abonos_del_dia: abonos,
+            total_abonado_hoy
         };
     }
 }

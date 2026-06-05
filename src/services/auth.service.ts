@@ -251,28 +251,6 @@ export class AuthService {
             }
         }
 
-        // 3. Si no existe, crear
-        if (!usuario) {
-            const existe = await AuthModel.findByCorreo(email!);
-            if (existe) {
-                // Ya tiene cuenta, vincular google_id
-                await pool.execute(
-                    'UPDATE usuario_rol SET google_id = ? WHERE correo_electronico = ?',
-                    [google_id, email]
-                );
-                usuario = await AuthModel.findByCorreo(email!);
-            } else {
-                // Crear nuevo usuario
-                const id_usuario = await AuthModel.createConGoogle({
-                    nombre: given_name || 'Usuario',
-                    apellido: family_name || 'Google',
-                    correo_electronico: email,
-                    google_id
-                });
-                usuario = await AuthModel.findById(id_usuario);
-            }
-        }
-
         if (!usuario) throw new Error('Error al crear usuario');
 
         // 4. Generar JWT

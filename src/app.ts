@@ -27,7 +27,12 @@ dotenv.config();
 
 const app: Application = express();
 
-app.use(cors());
+// En producción, FRONTEND_URL debe apuntar a la URL de Vercel
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL]
+  : ['http://localhost:4200'];
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

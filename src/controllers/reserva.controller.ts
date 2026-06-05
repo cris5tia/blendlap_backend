@@ -3,6 +3,7 @@ import { ReservaService } from '../services/reserva.service';
 import { ReservaModel } from '../models/reserva.model';
 import { pool } from '../database/connection';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import bcrypt from 'bcrypt';
 
 const getFechaColombia = (): string => {
     return new Intl.DateTimeFormat('en-CA', {
@@ -145,7 +146,6 @@ export class ReservaController {
 
                 // 1. Crear cliente temporal
                 const correo = `presencial_${Date.now()}@blendlap.local`;
-                const bcrypt = require('bcryptjs');
                 const hash = await bcrypt.hash('temporal123', 10);
 
                 const [clienteResult] = await connection.execute<ResultSetHeader>(

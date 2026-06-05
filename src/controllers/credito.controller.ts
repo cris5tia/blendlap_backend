@@ -76,7 +76,7 @@ export class CreditoController {
   }
   static async getMisCreditos(req: Request, res: Response): Promise<void> {
   try {
-    const id_cliente = (req as any).usuario.id_usuario;
+    const id_cliente = req.usuario!.id_usuario;
     const creditos = await CreditoModel.findByCliente(id_cliente);
     res.json({ ok: true, data: creditos });
   } catch (error: any) {

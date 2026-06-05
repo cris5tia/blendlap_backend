@@ -6,7 +6,7 @@ export class StatsController {
 
   static async getStatsBarbero(req: Request, res: Response): Promise<void> {
     try {
-      const id_barbero = (req as any).usuario.id_usuario;
+      const id_barbero = req.usuario!.id_usuario;
       const ahora = new Date();
       const mes = ahora.getMonth() + 1;
       const año = ahora.getFullYear();
@@ -108,10 +108,6 @@ export class StatsController {
          ORDER BY dia ASC`,
         [id_barbero, mes, año]
       );
-
-      console.log('[TOP_CLIENTES]', JSON.stringify(topClientes));
-      console.log('[DIST_SERVICIOS]', JSON.stringify(distribucionServicios));
-      console.log('[CITAS_DIA]', JSON.stringify(citasPorDiaMes));
 
       const comision = barbero[0]?.comision || 40;
       const ingresosMes = parseFloat(citasMes[0]?.ingresos || 0);

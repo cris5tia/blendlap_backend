@@ -46,16 +46,6 @@ export class ReservaService {
       throw new Error('El barbero no está disponible en esa fecha y hora');
     }
 
-    // Diagnóstico: ver qué hay en la DB antes de insertar
-    const [debugRows] = await pool.execute<any[]>(
-      `SELECT id_reserva, id_cliente, estado FROM reserva
-       WHERE id_barbero = ? AND fecha = ? AND hora = ?`,
-      [data.id_barbero, data.fecha, data.hora]
-    );
-    if (debugRows.length > 0) {
-      console.warn('[RESERVA] Hay filas bloqueando el slot:', JSON.stringify(debugRows));
-    }
-
     try {
       const id_reserva = await ReservaModel.create(data);
       return await ReservaModel.findById(id_reserva);
@@ -212,47 +202,60 @@ export class ReservaService {
       [id_barbero, fecha]
     );
 
-    const minutosOcupados: Set<number> = new Set();
+    // Calcular fin de cada reserva y encontrar el fin de la cola
+    let colaFin = inicio;
+    const minutosReserva: Set<number> = new Set();
     for (const reserva of reservas) {
       const [hh, mm] = reserva.hora.split(':').map(Number);
-      const inicioMin = hh * 60 + mm;
-      const finMin = inicioMin + Number(reserva.duracion_reserva);
-      for (let m = inicioMin; m < finMin; m++) {
-        minutosOcupados.add(m);
-      }
+      const inicioRes = hh * 60 + mm;
+      const finRes    = inicioRes + Number(reserva.duracion_reserva);
+      if (finRes > colaFin) colaFin = finRes;
+      for (let i = inicioRes; i < finRes; i++) minutosReserva.add(i);
     }
 
-    // ─── Excepciones barbero (almuerzo, descanso, etc) ────
+    // ─── Excepciones barbero (descansos) ──────────────────
     const [excepciones] = await pool.execute<RowDataPacket[]>(
       `SELECT hora_inicio, hora_fin FROM horario_excepcion
        WHERE id_usuario = ? AND dia_semana = ?`,
       [id_barbero, diaSemana]
     );
 
+    const minutosDescanso: Set<number> = new Set();
     for (const exc of excepciones) {
       const [eHH, eMM] = exc.hora_inicio.split(':').map(Number);
       const [eFH, eFM] = exc.hora_fin.split(':').map(Number);
       const excInicio = eHH * 60 + eMM;
-      const excFin = eFH * 60 + eFM;
-      for (let m = excInicio; m < excFin; m++) {
-        minutosOcupados.add(m);
-      }
+      const excFin    = eFH * 60 + eFM;
+      for (let i = excInicio; i < excFin; i++) minutosDescanso.add(i);
     }
 
     // ─── Generar slots ─────────────────────────────────────
+    // Cola secuencial: los slots arrancan desde el fin de la
+    // última reserva del día. Si hay un descanso en el camino,
+    // se salta al fin del descanso + 10 min de buffer.
+    const BUFFER_DESCANSO = 10;
     const slots: { hora: string; disponible: boolean }[] = [];
 
-    for (let m = inicio; m + duracion_total <= fin; m += duracion_total) {
-      let ocupado = false;
+    let m = colaFin;
+    while (m + duracion_total <= fin) {
+      // Verificar si este slot pisa algún descanso
+      let inicioConflicto = -1;
       for (let i = m; i < m + duracion_total; i++) {
-        if (minutosOcupados.has(i)) {
-          ocupado = true;
-          break;
-        }
+        if (minutosDescanso.has(i)) { inicioConflicto = i; break; }
       }
-      const h = Math.floor(m / 60).toString().padStart(2, '0');
-      const min = (m % 60).toString().padStart(2, '0');
-      slots.push({ hora: `${h}:${min}`, disponible: !ocupado });
+
+      if (inicioConflicto === -1) {
+        // Sin conflicto → slot disponible, avanzar por duracion_total
+        const h   = Math.floor(m / 60).toString().padStart(2, '0');
+        const min = (m % 60).toString().padStart(2, '0');
+        slots.push({ hora: `${h}:${min}`, disponible: true });
+        m += duracion_total;
+      } else {
+        // Descanso en el camino → saltar hasta su fin + buffer
+        let finDescanso = inicioConflicto;
+        while (finDescanso < fin && minutosDescanso.has(finDescanso)) finDescanso++;
+        m = finDescanso + BUFFER_DESCANSO;
+      }
     }
 
     return { id_barbero, fecha, disponible: true, slots };
