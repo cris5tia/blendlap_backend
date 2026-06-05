@@ -26,7 +26,7 @@ export const testConnection = async (): Promise<void> => {
     warmup.forEach(c => c.release());
     logger.info('Conexión a MySQL establecida correctamente (pool calentado)');
 
-    // Aplicar índices de rendimiento (IF NOT EXISTS → seguro de re-ejecutar)
+    // Aplicar índices de rendimiento (el catch maneja duplicados silenciosamente)
     await applyIndexes();
   } catch (error) {
     logger.error(`Error al conectar con MySQL: ${error}`);
@@ -36,12 +36,12 @@ export const testConnection = async (): Promise<void> => {
 
 async function applyIndexes(): Promise<void> {
   const indexes: string[] = [
-    'ALTER TABLE reserva ADD INDEX IF NOT EXISTS idx_reserva_cliente (id_cliente)',
-    'ALTER TABLE reserva ADD INDEX IF NOT EXISTS idx_reserva_barbero_fecha (id_barbero, fecha)',
-    'ALTER TABLE reserva ADD INDEX IF NOT EXISTS idx_reserva_barbero_estado (id_barbero, fecha, estado)',
-    'ALTER TABLE reserva_servicio ADD INDEX IF NOT EXISTS idx_rs_reserva (id_reserva)',
-    'ALTER TABLE resena ADD INDEX IF NOT EXISTS idx_resena_reserva (id_reserva)',
-    'ALTER TABLE horario_excepcion ADD INDEX IF NOT EXISTS idx_excepcion_usuario_dia (id_usuario, dia_semana)',
+    'ALTER TABLE reserva ADD INDEX idx_reserva_cliente (id_cliente)',
+    'ALTER TABLE reserva ADD INDEX idx_reserva_barbero_fecha (id_barbero, fecha)',
+    'ALTER TABLE reserva ADD INDEX idx_reserva_barbero_estado (id_barbero, fecha, estado)',
+    'ALTER TABLE reserva_servicio ADD INDEX idx_rs_reserva (id_reserva)',
+    'ALTER TABLE resena ADD INDEX idx_resena_reserva (id_reserva)',
+    'ALTER TABLE horario_excepcion ADD INDEX idx_excepcion_usuario_dia (id_usuario, dia_semana)',
   ];
   for (const sql of indexes) {
     try { await pool.execute(sql); } catch (_) { /* índice ya existe */ }
