@@ -54,11 +54,23 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/creditos', creditoRoutes);
 app.use('/api/pagos', pagoRoutes);
 
+const healthPayload = () => ({
+  status: 'ok',
+  timestamp: new Date().toISOString()
+});
+
+app.get('/health', (_req, res) => {
+  res.json(healthPayload());
+});
+
+app.get('/ping', (_req, res) => {
+  res.json(healthPayload());
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
-    status: 'OK',
+    ...healthPayload(),
     message: 'Servidor funcionando correctamente',
-    timestamp: new Date().toISOString()
   });
 });
 const PORT = process.env.PORT || 3000;
