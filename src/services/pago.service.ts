@@ -16,6 +16,20 @@ function calcularIntegrity(referencia: string, amountInCents: number): string {
   return crypto.createHash('sha256').update(cadena).digest('hex');
 }
 
+function obtenerRedirectUrl(): string {
+  const redirectUrl = process.env.WOMPI_REDIRECT_URL || 'http://localhost:4200/pago/resultado';
+
+  try {
+    const url = new URL(redirectUrl);
+    if (url.pathname === '/' || url.pathname === '') {
+      url.pathname = '/pago/resultado';
+    }
+    return url.toString();
+  } catch {
+    return redirectUrl;
+  }
+}
+
 export class PagoService {
 
   static async iniciarPago(
@@ -33,7 +47,7 @@ export class PagoService {
       publicKey:     process.env.WOMPI_PUBLIC_KEY || '',
       integrityHash: calcularIntegrity(referencia, amountInCents),
       currency:      'COP',
-      redirectUrl:   process.env.WOMPI_REDIRECT_URL || 'http://localhost:4200/pago/resultado',
+      redirectUrl:   obtenerRedirectUrl(),
     };
   }
 
