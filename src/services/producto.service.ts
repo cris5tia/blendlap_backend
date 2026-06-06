@@ -1,5 +1,6 @@
 import { ProductoModel } from '../models/producto.model';
 import { ICrearProducto, IActualizarProducto, ICrearMovimiento } from '../interfaces/producto.interface';
+import { subirDataUrlCloudinary } from '../utils/cloudinary';
 
 export class ProductoService {
 
@@ -26,6 +27,8 @@ export class ProductoService {
     const existe = await ProductoModel.findByCodigo(data.codigo_producto);
     if (existe) throw new Error('Ya existe un producto con ese código');
 
+    data.imagen = await subirDataUrlCloudinary(data.imagen, 'productos') as any;
+
     const id_producto = await ProductoModel.create(data);
     return await ProductoModel.findById(id_producto);
   }
@@ -36,6 +39,8 @@ export class ProductoService {
     if (data.precio !== undefined && data.precio < 0) {
       throw new Error('El precio no puede ser negativo');
     }
+    data.imagen = await subirDataUrlCloudinary(data.imagen, 'productos') as any;
+
     await ProductoModel.update(id, data);
     return await ProductoModel.findById(id);
   }

@@ -210,7 +210,7 @@ export class AuthService {
     static async actualizarPerfil(id_usuario: number, data: { nombre?: string; apellido?: string; telefono?: string; foto?: string | null }) {
         if (data.foto !== undefined) {
             const perfilActual = await AuthModel.obtenerPerfil(id_usuario);
-            if (perfilActual?.foto) eliminarArchivo('clientes', perfilActual.foto);
+            if (perfilActual?.foto) await eliminarArchivo('clientes', perfilActual.foto);
         }
         await AuthModel.actualizarPerfil(id_usuario, data);
         return await AuthModel.obtenerPerfil(id_usuario);

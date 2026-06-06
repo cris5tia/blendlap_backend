@@ -51,7 +51,7 @@ export class UsuarioService {
   }) {
     if (data.foto) {
       const barberoActual = await UsuarioModel.findById(id);
-      if (barberoActual?.foto) eliminarArchivo('barberos', barberoActual.foto);
+      if (barberoActual?.foto) await eliminarArchivo('barberos', barberoActual.foto);
     }
     return await UsuarioModel.actualizarBarbero(id, data);
   }

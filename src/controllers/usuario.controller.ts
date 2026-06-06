@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { UsuarioService } from '../services/usuario.service';
+import { subirArchivoCloudinary } from '../utils/cloudinary';
 
 export class UsuarioController {
 
@@ -57,7 +58,8 @@ export class UsuarioController {
         res.status(400).json({ ok: false, mensaje: 'No se envió ninguna imagen' });
         return;
       }
-      res.status(200).json({ ok: true, nombreArchivo: req.file.filename });
+      const url = await subirArchivoCloudinary(req.file, 'barberos');
+      res.status(200).json({ ok: true, nombreArchivo: url });
     } catch (error: any) {
       res.status(500).json({ ok: false, mensaje: error.message });
     }

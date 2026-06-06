@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
+import { subirArchivoCloudinary } from '../utils/cloudinary';
 
 
 export class AuthController {
@@ -173,7 +174,7 @@ export class AuthController {
             if (body.apellido?.trim()) data.apellido = body.apellido.trim();
             if (body.telefono !== undefined) data.telefono = (body.telefono || '').trim();
             if (body.eliminarFoto === 'true') data.foto = null;
-            else if (req.file) data.foto = req.file.filename;
+            else if (req.file) data.foto = await subirArchivoCloudinary(req.file, 'clientes');
             const perfil = await AuthService.actualizarPerfil(id_usuario, data);
             res.status(200).json({ ok: true, data: perfil });
         } catch (error: any) {

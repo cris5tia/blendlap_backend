@@ -1,5 +1,6 @@
 import { ServicioModel } from '../models/servicio.model';
 import { ICrearServicio, IActualizarServicio } from '../interfaces/servicio.interface';
+import { subirDataUrlCloudinary } from '../utils/cloudinary';
 
 export class ServicioService {
 
@@ -29,6 +30,8 @@ export class ServicioService {
       throw new Error('La duración debe ser mayor a 0');
     }
 
+    data.imagen = await subirDataUrlCloudinary(data.imagen, 'servicios') as any;
+
     const id_servicio = await ServicioModel.create(data);
     return await ServicioModel.findById(id_servicio);
   }
@@ -45,6 +48,8 @@ export class ServicioService {
     if (data.duracion !== undefined && data.duracion <= 0) {
       throw new Error('La duración debe ser mayor a 0');
     }
+
+    data.imagen = await subirDataUrlCloudinary(data.imagen, 'servicios') as any;
 
     await ServicioModel.update(id, data);
     return await ServicioModel.findById(id);
