@@ -1,31 +1,23 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import logger from '../utils/logger';
 
-// Las App Passwords de Gmail se muestran con espacios (xxxx xxxx xxxx xxxx)
-// pero deben usarse sin ellos
-const EMAIL_PASS = (process.env.EMAIL_PASS || '').replace(/\s/g, '');
-const EMAIL_USER = process.env.EMAIL_USER || '';
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM = 'Blendlap <onboarding@resend.dev>';
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS,
-  },
-});
-
-// Verifica la conexión SMTP al arrancar el servidor
-transporter.verify((error: Error | null) => {
-  if (error) {
-    logger.error(`[EmailService] Conexión SMTP fallida: ${error.message}`);
-  } else {
-    logger.info('[EmailService] SMTP listo para enviar correos');
+async function enviarCorreo(destinatario: string, asunto: string, templateHTML: string): Promise<void> {
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: destinatario,
+      subject: asunto,
+      html: templateHTML,
+    });
+  } catch (error: any) {
+    logger.error(`[EmailService] Error enviando correo con Resend: ${error.message}`);
+    throw error;
   }
-});
+}
 
-const FROM = `"Blendlap Barbería" <${EMAIL_USER}>`;
 
 // Cada dígito va en su propio <td> dentro de un <tr> — nunca se parte en móvil
 function buildDigitCells(codigo: string, size: 'sm' | 'lg'): string {
@@ -184,12 +176,11 @@ export class EmailService {
       </p>
     `;
 
-    await transporter.sendMail({
-      from: FROM,
-      to: correo,
-      subject: '🔐 Tu código de verificación — Blendlap Barbería',
-      html: buildEmail(content),
-    });
+    await enviarCorreo(
+      correo,
+      '🔐 Tu código de verificación — Blendlap Barbería',
+      buildEmail(content)
+    );
   }
 
   // ── Recuperación — 6 dígitos ───────────────────────────────────────────────
@@ -262,12 +253,11 @@ export class EmailService {
       </p>
     `;
 
-    await transporter.sendMail({
-      from: FROM,
-      to: correo,
-      subject: '🔑 Tu código de recuperación — Blendlap Barbería',
-      html: buildEmail(content),
-    });
+    await enviarCorreo(
+      correo,
+      '🔑 Tu código de recuperación — Blendlap Barbería',
+      buildEmail(content)
+    );
   }
 
   // ── Crédito rechazado ──────────────────────────────────────────────────────
@@ -366,11 +356,10 @@ export class EmailService {
       </p>
     `;
 
-    await transporter.sendMail({
-      from: FROM,
-      to: correo,
-      subject: 'Tu solicitud de crédito en Blendlap — Respuesta',
-      html: buildEmail(content),
-    });
+    await enviarCorreo(
+      correo,
+      'Tu solicitud de crédito en Blendlap — Respuesta',
+      buildEmail(content)
+    );
   }
 }
