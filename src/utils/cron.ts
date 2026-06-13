@@ -4,6 +4,7 @@ import { RowDataPacket } from 'mysql2';
 import { ReservaService } from '../services/reserva.service';
 import logger from './logger';
 import { CreditoService } from '../services/credito.service';
+import { NotificacionService } from '../services/notificacion.service';
 
 export const iniciarCronJobs = () => {
 
@@ -31,6 +32,63 @@ export const iniciarCronJobs = () => {
 
     } catch (error) {
       logger.error(`Error en cron job: ${error}`);
+    }
+  });
+
+  // Recordatorios de cita: 2 horas y 30 minutos antes
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      // Asegurar columnas para evitar fallos si la BD no las tiene
+      try {
+        await pool.execute(`ALTER TABLE reserva ADD COLUMN recordatorio_enviado_2h TINYINT(1) DEFAULT 0`);
+      } catch (e) {
+        // ignorar (posible que ya exista)
+      }
+      try {
+        await pool.execute(`ALTER TABLE reserva ADD COLUMN recordatorio_enviado_30m TINYINT(1) DEFAULT 0`);
+      } catch (e) {
+        // ignorar
+      }
+
+      const offsets = [
+        { minutes: 120, column: 'recordatorio_enviado_2h' },
+        { minutes: 30, column: 'recordatorio_enviado_30m' }
+      ];
+
+      for (const off of offsets) {
+        const [rows] = await pool.execute<any[]>(
+          `SELECT id_reserva, id_cliente, fecha, hora
+           FROM reserva
+           WHERE recordatorio = 1
+             AND estado IN ('pendiente', 'confirmada')
+             AND COALESCE(${off.column}, 0) = 0
+             AND TIMESTAMP(fecha, hora) BETWEEN DATE_ADD(NOW(), INTERVAL ? MINUTE)
+                                          AND DATE_ADD(NOW(), INTERVAL ? MINUTE)`,
+          [off.minutes, off.minutes + 5]
+        );
+
+        for (const r of rows) {
+          // Enviar notificación al cliente
+          try {
+            await NotificacionService.enviarAUsuario(r.id_cliente, {
+              title: 'Recordatorio de cita',
+              body: `Tu cita es el ${r.fecha} a las ${r.hora} (en ${off.minutes} minutos).`,
+              data: { url: '/cliente/dashboard', id_reserva: r.id_reserva }
+            });
+
+            // Marcar como enviado
+            await pool.execute(
+              `UPDATE reserva SET ${off.column} = 1 WHERE id_reserva = ?`,
+              [r.id_reserva]
+            );
+            logger.info(`Recordatorio ${off.minutes}min enviado para reserva ${r.id_reserva}`);
+          } catch (err) {
+            logger.warn(`No se pudo enviar recordatorio para reserva ${r.id_reserva}: ${err}`);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(`[CRON] Error recordatorios: ${error}`);
     }
   });
 
