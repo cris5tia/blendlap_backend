@@ -4,6 +4,7 @@ import { ReservaModel } from '../models/reserva.model';
 import { pool } from '../database/connection';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import bcrypt from 'bcrypt';
+import { NotificacionService } from '../services/notificacion.service';
 
 const getFechaColombia = (): string => {
     return new Intl.DateTimeFormat('en-CA', {
@@ -68,6 +69,7 @@ export class ReservaController {
     static async create(req: Request, res: Response): Promise<void> {
         try {
             const reserva = await ReservaService.create(req.body);
+            void NotificacionService.enviarReservaCreada(reserva);
             res.status(201).json({ ok: true, data: reserva });
         } catch (error: any) {
             res.status(400).json({ ok: false, mensaje: error.message });
