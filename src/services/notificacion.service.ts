@@ -43,21 +43,31 @@ export class NotificacionService {
     const fecha = reserva.fecha ? new Date(reserva.fecha).toLocaleDateString('es-CO') : '';
     const hora = reserva.hora || '';
     const cliente = [reserva.cliente_nombre, reserva.cliente_apellido].filter(Boolean).join(' ') || 'un cliente';
-    const barbero = [reserva.barbero_nombre, reserva.barbero_apellido].filter(Boolean).join(' ') || 'tu barbero';
 
+    // Solo notificar al barbero (evento importante)
+    // El cliente ya ve la confirmación en los avisos de la app
     if (reserva.id_barbero) {
       await NotificacionService.enviarAUsuario(reserva.id_barbero, {
-        title: 'Nueva cita en Blendlap',
-        body: `${cliente} agendó para ${fecha} a las ${hora}.`,
+        title: 'Nueva cita reservada',
+        body: `${cliente} agendó una cita para ${fecha} a las ${hora}.`,
         data: { url: '/barbero/agenda', id_reserva: reserva.id_reserva }
       });
     }
+  }
 
-    if (reserva.id_cliente) {
-      await NotificacionService.enviarAUsuario(reserva.id_cliente, {
-        title: 'Cita confirmada',
-        body: `Tu cita con ${barbero} quedó para ${fecha} a las ${hora}.`,
-        data: { url: '/cliente/dashboard', id_reserva: reserva.id_reserva }
+  static async enviarCitaCancelada(reserva: any): Promise<void> {
+    if (!reserva) return;
+
+    const fecha = reserva.fecha ? new Date(reserva.fecha).toLocaleDateString('es-CO') : '';
+    const hora = reserva.hora || '';
+    const cliente = [reserva.cliente_nombre, reserva.cliente_apellido].filter(Boolean).join(' ') || 'un cliente';
+
+    // Notificar al barbero que la cita fue cancelada
+    if (reserva.id_barbero) {
+      await NotificacionService.enviarAUsuario(reserva.id_barbero, {
+        title: 'Cita cancelada',
+        body: `${cliente} canceló su cita del ${fecha} a las ${hora}.`,
+        data: { url: '/barbero/agenda', id_reserva: reserva.id_reserva }
       });
     }
   }

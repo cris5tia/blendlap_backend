@@ -69,6 +69,7 @@ export class ReservaController {
     static async create(req: Request, res: Response): Promise<void> {
         try {
             const reserva = await ReservaService.create(req.body);
+            // Enviar notificación PWA al barbero (solo evento importante)
             void NotificacionService.enviarReservaCreada(reserva);
             res.status(201).json({ ok: true, data: reserva });
         } catch (error: any) {
@@ -82,6 +83,12 @@ export class ReservaController {
             const id = parseInt(req.params.id);
             const { rol, id_usuario } = req.usuario!;
             const reserva = await ReservaService.update(id, req.body, rol, id_usuario);
+            
+            // Si se cancela la cita, enviar notificación al barbero
+            if (req.body.estado === 'cancelada' && reserva) {
+                void NotificacionService.enviarCitaCancelada(reserva);
+            }
+            
             res.status(200).json({ ok: true, data: reserva });
         } catch (error: any) {
             res.status(400).json({ ok: false, mensaje: error.message });
