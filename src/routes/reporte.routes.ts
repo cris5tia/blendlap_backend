@@ -4,9 +4,9 @@ import { verificarToken, verificarRol } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-router.get('/diario', verificarToken, verificarRol('admin'), ReporteController.getDiario);
-router.get('/periodo', verificarToken, verificarRol('admin'), ReporteController.getPeriodo);
-router.get('/estadisticas', verificarToken, verificarRol('admin'), ReporteController.getEstadisticas);
-router.get('/pdf', verificarToken, verificarRol('admin'), ReporteController.exportarPDF);
+router.get('/completo',  verificarToken, verificarRol('admin'), ReporteController.getCompleto);
+router.get('/diario',    verificarToken, verificarRol('admin'), ReporteController.getDiario);
+router.get('/pdf',       verificarToken, verificarRol('admin'), ReporteController.exportarPDF);
+router.get('/excel',     verificarToken, verificarRol('admin'), ReporteController.exportarExcel);
 
 export default router;

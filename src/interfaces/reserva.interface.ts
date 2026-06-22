@@ -5,7 +5,6 @@ export interface IReserva {
   fecha: Date;
   hora: string;
   estado: 'pendiente' | 'confirmada' | 'cancelada' | 'completada';
-  recordatorio: boolean;
   servicios?: number[]; // ids de servicios
 }
 
@@ -21,6 +20,5 @@ export interface IActualizarReserva {
   fecha?: string;
   hora?: string;
   estado?: 'pendiente' | 'confirmada' | 'cancelada' | 'completada';
-  recordatorio?: boolean;
   servicios?: number[];
 }

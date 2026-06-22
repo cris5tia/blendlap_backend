@@ -8,7 +8,6 @@ import { EmailService } from './email.service';
 import { eliminarArchivo } from '../utils/files';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Registros pendientes de verificación por correo (en memoria)
@@ -50,7 +49,7 @@ export class AuthService {
             rol: usuario.rol
         };
 
-        const token = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as any);
+        const token = jwt.sign(jwtPayload, JWT_SECRET);
 
         return {
             token,
@@ -86,7 +85,7 @@ export class AuthService {
             rol: payload.rol
         };
 
-        const token = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as any);
+        const token = jwt.sign(jwtPayload, JWT_SECRET);
 
         return {
             token,
@@ -260,7 +259,7 @@ export class AuthService {
             rol: usuario.rol
         };
 
-        const token_jwt = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as any);
+        const token_jwt = jwt.sign(jwtPayload, JWT_SECRET);
 
         return {
             token: token_jwt,

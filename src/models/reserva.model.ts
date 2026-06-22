@@ -147,8 +147,8 @@ export class ReservaModel {
 
             // 1. Insertar reserva
             const [result] = await connection.execute<ResultSetHeader>(
-                `INSERT INTO reserva (id_cliente, id_barbero, fecha, hora, estado, recordatorio)
-       VALUES (?, ?, ?, ?, 'confirmada', 1)`,
+                `INSERT INTO reserva (id_cliente, id_barbero, fecha, hora, estado)
+       VALUES (?, ?, ?, ?, 'confirmada')`,
                 [data.id_cliente, data.id_barbero, data.fecha, data.hora]
             );
             const id_reserva = result.insertId;
@@ -198,7 +198,6 @@ export class ReservaModel {
             if (data.fecha !== undefined) { campos.push('fecha = ?'); valores.push(data.fecha); }
             if (data.hora !== undefined) { campos.push('hora = ?'); valores.push(data.hora); }
             if (data.estado !== undefined) { campos.push('estado = ?'); valores.push(data.estado); }
-            if (data.recordatorio !== undefined) { campos.push('recordatorio = ?'); valores.push(data.recordatorio ? 1 : 0); }
 
             if (campos.length > 0) {
                 valores.push(id);
