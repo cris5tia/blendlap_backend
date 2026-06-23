@@ -395,10 +395,10 @@ function productCategoryLabel(cat: string): string {
 
 function productCategoryOptions(): MenuOption[] {
   return [
-    { label: 'Barbería', value: 'Cat:barberia' },
-    { label: 'Ropa', value: 'Cat:ropa' },
-    { label: 'Accesorios', value: 'Cat:accesorios' },
-    { label: 'Cuidado', value: 'Cat:cuidado' },
+    { label: 'Barbería', value: 'Barbería' },
+    { label: 'Ropa', value: 'Ropa' },
+    { label: 'Accesorios', value: 'Accesorios' },
+    { label: 'Cuidado', value: 'Cuidado' },
     { label: 'Ver todas las categorías', value: 'Ver productos' },
     { label: 'Volver al inicio', value: 'Volver al inicio' },
   ];
@@ -1074,8 +1074,8 @@ export class ChatService {
           options: filterGuestOptions(
             [
               { label: 'Agendar cita', value: 'Agendar cita' },
-              { label: 'Ver Clásicos', value: 'Clásicos' },
-              { label: 'Ver Premium', value: 'Premium' },
+              { label: 'Clásicos', value: 'Clásicos' },
+              { label: 'Premium', value: 'Premium' },
               { label: 'Volver al inicio', value: 'Volver al inicio' },
             ],
             isGuest
