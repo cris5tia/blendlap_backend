@@ -37,6 +37,9 @@ export class AuthService {
         }
 
         // 2. Verificar contraseña
+        if (!usuario.contrasena) {
+            throw new Error('Esta cuenta fue creada con Google. Por favor, iniciá sesión con Google');
+        }
         const passwordValida = await bcrypt.compare(payload.contrasena, usuario.contrasena);
         if (!passwordValida) {
             throw new Error('Credenciales inválidas');

@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import logger from '../utils/logger';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = 'Blendlap <onboarding@resend.dev>';
+const FROM = 'Blendlap <notificaciones@blendlap.com>';
 
 async function enviarCorreo(destinatario: string, asunto: string, templateHTML: string): Promise<void> {
   try {

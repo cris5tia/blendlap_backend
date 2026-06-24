@@ -6,14 +6,21 @@ export class UsuarioModel {
   // Buscar cliente por nombre, teléfono o correo
   static async buscarClientes(termino: string): Promise<RowDataPacket[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT id_usuario, nombre, apellido, correo_electronico, telefono, observaciones, estado
-       FROM usuario_rol
-       WHERE rol = 'cliente'
+      `SELECT u.id_usuario, u.nombre, u.apellido, u.correo_electronico, u.telefono, u.observaciones, u.estado,
+        (SELECT s.nombre_servicio
+         FROM reserva r
+         JOIN reserva_servicio rs ON r.id_reserva = rs.id_reserva
+         JOIN servicio s ON rs.id_servicio = s.id_servicio
+         WHERE r.id_cliente = u.id_usuario AND r.estado = 'completada'
+         GROUP BY s.id_servicio ORDER BY COUNT(*) DESC LIMIT 1
+        ) AS servicio_frecuente
+       FROM usuario_rol u
+       WHERE u.rol = 'cliente'
        AND (
-         nombre LIKE ? OR
-         apellido LIKE ? OR
-         telefono LIKE ? OR
-         correo_electronico LIKE ?
+         u.nombre LIKE ? OR
+         u.apellido LIKE ? OR
+         u.telefono LIKE ? OR
+         u.correo_electronico LIKE ?
        )`,
       [`%${termino}%`, `%${termino}%`, `%${termino}%`, `%${termino}%`]
     );
@@ -23,10 +30,17 @@ export class UsuarioModel {
   // Obtener todos los clientes
   static async findAllClientes(): Promise<RowDataPacket[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT id_usuario, nombre, apellido, correo_electronico, telefono, observaciones, estado, fecha_creacion
-       FROM usuario_rol
-       WHERE rol = 'cliente'
-       ORDER BY nombre ASC`
+      `SELECT u.id_usuario, u.nombre, u.apellido, u.correo_electronico, u.telefono, u.observaciones, u.estado, u.fecha_creacion,
+        (SELECT s.nombre_servicio
+         FROM reserva r
+         JOIN reserva_servicio rs ON r.id_reserva = rs.id_reserva
+         JOIN servicio s ON rs.id_servicio = s.id_servicio
+         WHERE r.id_cliente = u.id_usuario AND r.estado = 'completada'
+         GROUP BY s.id_servicio ORDER BY COUNT(*) DESC LIMIT 1
+        ) AS servicio_frecuente
+       FROM usuario_rol u
+       WHERE u.rol = 'cliente'
+       ORDER BY u.nombre ASC`
     );
     return rows;
   }
