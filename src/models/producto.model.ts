@@ -63,6 +63,7 @@ export class ProductoModel {
   if (data.categoria       !== undefined) { campos.push('categoria = ?');       valores.push(data.categoria); }
   if (data.talla           !== undefined) { campos.push('talla = ?');           valores.push(data.talla || null); }
   if (data.imagen          !== undefined) { campos.push('imagen = ?');          valores.push(data.imagen); }
+  if (data.estado          !== undefined) { campos.push('estado = ?');          valores.push(data.estado); }
 
   if (campos.length === 0) return false;
   valores.push(id);
@@ -96,6 +97,11 @@ export class ProductoModel {
         (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, stock_resultante)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [data.id_producto, id_usuario, data.tipo_movimiento, data.cantidad, data.motivo || null, stockResultante]
+    );
+
+    await pool.execute(
+      'UPDATE producto SET stock = ? WHERE id_producto = ?',
+      [stockResultante, data.id_producto]
     );
   }
 

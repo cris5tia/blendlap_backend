@@ -1,5 +1,6 @@
 import { pool } from '../database/connection';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import bcrypt from 'bcrypt';
 
 export class UsuarioModel {
 
@@ -117,12 +118,21 @@ export class UsuarioModel {
   }
 
   static async crearBarbero(data: any): Promise<any> {
-    const bcrypt = require('bcryptjs');
+    if (!data.nombre || !data.apellido || !data.correo_electronico || !data.contrasena) {
+      throw new Error('Nombre, apellido, correo y contraseña son obligatorios');
+    }
+    const [existe] = await pool.execute<RowDataPacket[]>(
+      'SELECT id_usuario FROM usuario_rol WHERE correo_electronico = ?',
+      [data.correo_electronico]
+    );
+    if ((existe as RowDataPacket[]).length > 0) {
+      throw new Error('Ya existe un usuario con ese correo electrónico');
+    }
     const hash = await bcrypt.hash(data.contrasena, 12);
     const [result] = await pool.execute<ResultSetHeader>(
       `INSERT INTO usuario_rol (nombre, apellido, correo_electronico, contrasena, rol, titulo, descripcion, foto,experiencia,especialidades,comision)
      VALUES (?, ?, ?, ?, 'barbero', ?, ?, ?, ?, ?, ?)`,
-      [data.nombre, data.apellido, data.correo_electronico, hash, data.titulo || null, data.descripcion || null, data.foto || null, data.experiencia || 0, data.especialidades || null, data.comision || null]
+      [data.nombre, data.apellido, data.correo_electronico, hash, data.titulo || null, data.descripcion || null, data.foto || null, data.experiencia ?? 0, data.especialidades || null, data.comision ?? null]
     );
     const [rows] = await pool.execute<RowDataPacket[]>(
       'SELECT * FROM usuario_rol WHERE id_usuario = ?',
@@ -159,13 +169,6 @@ export class UsuarioModel {
     return rows[0];
   }
 
-  static async delete(id: number): Promise<boolean> {
-    const [result] = await pool.execute<ResultSetHeader>(
-      'DELETE FROM usuario_rol WHERE id_usuario = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
-  }
   static async findAllBarberos(): Promise<any[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT 

@@ -10,6 +10,7 @@ export class VentaModel {
         CONCAT(u.nombre, ' ', u.apellido) AS nombre_cajero
        FROM venta v
        JOIN usuario_rol u ON v.id_cajero = u.id_usuario
+       WHERE v.id_reserva IS NULL
        ORDER BY v.fecha DESC`
         );
         return rows as IVenta[];
