@@ -1,9 +1,20 @@
 import axios from 'axios';
+import { RowDataPacket } from 'mysql2';
+import { pool } from '../database/connection';
 import { ReservaService } from './reserva.service';
+import { AuthService } from './auth.service';
 import { ServicioModel } from '../models/servicio.model';
 import { UsuarioModel } from '../models/usuario.model';
 import { ProductoModel } from '../models/producto.model';
+import { HorarioModel } from '../models/horario.model';
 import logger from '../utils/logger';
+
+const BARBERIA_INFO = {
+  whatsapp: '318 123 4567',
+  instagram: '@blendlap',
+  direccion: 'Blendlap Barbería — Bogotá, Colombia',
+  email: 'blendlap@gmail.com',
+};
 
 type ChatIntent = 'info' | 'create_reservation' | 'list_reservations';
 type MenuOption = { label: string; value: string };
@@ -51,7 +62,7 @@ type ProcessArgs = {
   isGuest: boolean;
 };
 
-type BookingStep = 'servicio' | 'barbero' | 'fecha' | 'hora';
+type BookingStep = 'servicio' | 'barbero' | 'fecha' | 'hora' | 'confirmar';
 
 type PendingBooking = {
   step: BookingStep;
@@ -60,6 +71,17 @@ type PendingBooking = {
   barbero_nombre?: string;
   id_barbero?: number;
   fecha?: string;
+  hora?: string;
+};
+
+type RecuperacionStep = 'email' | 'codigo' | 'nueva_pass' | 'confirmar_pass';
+
+type PendingRecuperacion = {
+  step: RecuperacionStep;
+  correo?: string;
+  codigo?: string;
+  nueva_contrasena?: string;
+  esCliente?: boolean;
 };
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
@@ -71,6 +93,7 @@ type ChatRole = 'user' | 'assistant';
 type MemoryItem = { role: ChatRole; content: string };
 const memoryBySession = new Map<string, MemoryItem[]>();
 const pendingBookingBySession = new Map<string, PendingBooking>();
+const pendingRecuperacionBySession = new Map<string, PendingRecuperacion>();
 const awaitingServiceCategoryBySession = new Map<string, boolean>();
 const awaitingProductCategoryBySession = new Map<string, boolean>();
 
@@ -179,19 +202,19 @@ function isResetIntent(msgNorm: string): boolean {
 function welcomeMessage(isGuest: boolean): string {
   if (isGuest) {
     return [
-      '¡Hola! Soy BARBUX, tu asistente de Blendlap.',
+      '¡Hola! Soy BARBUX, el asistente virtual de Blendlap.',
       '',
-      'Puedo ayudarte con servicios, productos y barberos.',
+      'Puedo ayudarte con información sobre servicios, productos y barberos disponibles.',
       '',
-      '¿En qué te ayudo?',
+      '¿En qué puedo ayudarte hoy?',
     ].join('\n');
   }
   return [
-    '¡Hola! Soy BARBUX, tu asistente de Blendlap.',
+    '¡Hola! Soy BARBUX, el asistente virtual de Blendlap.',
     '',
-    'Puedo ayudarte a agendar citas, ver tus reservas, consultar servicios y productos.',
+    'Puedo ayudarte a agendar citas, consultar tus reservas, explorar servicios y productos.',
     '',
-    'Usa los botones de abajo o escríbeme lo que necesites.',
+    'Selecciona una opción o escríbeme lo que necesitas.',
   ].join('\n');
 }
 
@@ -220,6 +243,7 @@ function resetChatToStart(sessionKey: string, isGuest: boolean, forceWelcome = f
 
   memoryBySession.delete(sessionKey);
   pendingBookingBySession.delete(sessionKey);
+  pendingRecuperacionBySession.delete(sessionKey);
   awaitingServiceCategoryBySession.delete(sessionKey);
   awaitingProductCategoryBySession.delete(sessionKey);
 
@@ -248,16 +272,6 @@ function formatHoraLegible(hora: string): string {
   const sufijo = h >= 12 ? 'p.m.' : 'a.m.';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${sufijo}`;
-}
-
-function formatEstadoReserva(estado: string): string {
-  const map: Record<string, string> = {
-    pendiente: 'Pendiente de confirmación',
-    confirmada: 'Confirmada',
-    completada: 'Completada',
-    cancelada: 'Cancelada',
-  };
-  return map[estado] || estado;
 }
 
 function formatPrecio(valor: unknown): string {
@@ -316,11 +330,12 @@ function reply(
 
 function guestMenuOptions(): MenuOption[] {
   return [
+    { label: '¿Cómo hago una reserva?', value: '¿Cómo hago una reserva?' },
     { label: 'Ver servicios', value: 'Ver servicios' },
     { label: 'Ver productos', value: 'Ver productos' },
-    { label: 'Ver barberos disponibles', value: 'Ver barberos disponibles' },
-    { label: '¿Cómo hago una reserva?', value: '¿Cómo hago una reserva?' },
-    { label: 'Volver al inicio', value: 'Volver al inicio' },
+    { label: 'Ver barberos', value: 'Ver barberos' },
+    { label: 'Recuperar contraseña', value: 'Recuperar contraseña' },
+    { label: 'Volver al menú principal', value: 'Volver al inicio' },
   ];
 }
 
@@ -336,13 +351,17 @@ function mainMenuOptions(isGuest = false): MenuOption[] {
   if (isGuest) return guestMenuOptions();
   return [
     { label: 'Agendar cita', value: 'Agendar cita' },
-    { label: 'Mis citas', value: 'Mis citas' },
+    { label: '¿Cómo hago una reserva?', value: '¿Cómo hago una reserva?' },
     { label: 'Ver servicios', value: 'Ver servicios' },
     { label: 'Ver productos', value: 'Ver productos' },
-    { label: 'Ver barberos disponibles', value: 'Ver barberos disponibles' },
-    { label: '¿Cómo hago una reserva?', value: '¿Cómo hago una reserva?' },
-    { label: 'Volver al inicio', value: 'Volver al inicio' },
+    { label: 'Ver barberos', value: 'Ver barberos' },
+    { label: 'Recuperar contraseña', value: 'Recuperar contraseña' },
+    { label: 'Volver al menú principal', value: 'Volver al inicio' },
   ];
+}
+
+function isRecuperacionIntent(msgNorm: string): boolean {
+  return /(recuperar (contrasena|password|clave)|olvide (mi )?(contrasena|password|clave)|cambiar contrasena|restablecer (contrasena|password)|no recuerdo (mi )?(contrasena|password)|resetear contrasena|recuperacion de contrasena|recuperar contrasena)/.test(msgNorm);
 }
 
 function isReservationHowToQuestion(msgNorm: string): boolean {
@@ -372,11 +391,11 @@ function authRequiredReply(sessionKey: string, accion: string, isGuest: boolean)
   return reply(
     sessionKey,
     [
-      'No tienes permisos para hacer o ver reservas sin iniciar sesión.',
+      `Para ${accion} necesitas una cuenta de cliente.`,
       '',
-      `Para ${accion}, inicia sesión o regístrate como cliente en Blendlap.`,
+      'Inicia sesión o regístrate para acceder a esta función.',
       '',
-      'Mientras tanto, puedo mostrarte servicios, productos y barberos disponibles.',
+      'Mientras tanto, puedo mostrarte los servicios, productos y barberos disponibles.',
     ].join('\n'),
     'info',
     { requiresAuth: true, options: mainMenuOptions(isGuest) }
@@ -400,7 +419,7 @@ function productCategoryOptions(): MenuOption[] {
     { label: 'Accesorios', value: 'Accesorios' },
     { label: 'Cuidado', value: 'Cuidado' },
     { label: 'Ver todas las categorías', value: 'Ver productos' },
-    { label: 'Volver al inicio', value: 'Volver al inicio' },
+    { label: 'Volver al menú principal', value: 'Volver al inicio' },
   ];
 }
 
@@ -575,7 +594,19 @@ function isPrivateRequest(msgNorm: string): boolean {
 }
 
 function isBarberiaTopic(msgNorm: string): boolean {
-  return /(barber|blendlap|cita|reserv|agendar|servicio|premium|clasico|barbero|estilista|producto|tienda|corte|barba|peinado|horario|ubicacion|direccion|promoc|descuento|precio|pago|metodo de pago|cliente|reserva)/.test(msgNorm);
+  return /(barber|blendlap|cita|reserv|agendar|servicio|premium|clasico|barbero|estilista|producto|tienda|corte|barba|peinado|horario|ubicacion|direccion|promoc|descuento|precio|pago|metodo de pago|cliente|reserva|contacto|telefono|celular|whatsapp|instagram|facebook|redes|correo barber|solicitado|popular|mas pedido)/.test(msgNorm);
+}
+
+function isServicioPopular(msgNorm: string): boolean {
+  return /(servicio (con )?(mas |m[aá]s )?(solicitado|popular|reservado|pedido|demandado)|qu[eé] servicio (se )?pide(n)? m[aá]s|servicio favorito|m[aá]s solicitado|m[aá]s reservado|m[aá]s pedido|cu[aá]l (es el )?servicio (m[aá]s|estrella)|top servicio)/.test(msgNorm);
+}
+
+function isBarberoPopular(msgNorm: string): boolean {
+  return /(barbero (con )?(mas |m[aá]s )?(solicitado|popular|reservado|pedido|bueno|demandado|citas|agendas)|barbero.{0,25}(mas|m[aá]s).{0,15}(citas|agendas|reservas)|(mas|m[aá]s).{0,15}(citas|agendas|reservas).{0,15}barbero|qu[eé] barbero tiene m[aá]s|mejor barbero|barbero favorito|cu[aá]l (es el )?barbero|top barbero)/.test(msgNorm);
+}
+
+function isContactoBarberia(msgNorm: string): boolean {
+  return /(contacto|tel[eé]fono|numero|celular|whatsapp|instagram|facebook|redes (sociales)?|c[oó]mo (me )?comunico|c[oó]mo (los |te )?contacto|direcci[oó]n|d[oó]nde (est[aá]n|quedan|queda)|ubicaci[oó]n|correo (de la )?barber)/.test(msgNorm);
 }
 
 function parseFechaInput(text: string): string | null {
@@ -731,29 +762,6 @@ function matchBarbero(text: string, barberos: any[]): any | null {
   }) || null;
 }
 
-function formatServicios(servicios: any[]): string {
-  const items = servicios.slice(0, 20).map((s) => {
-    const precio = s.precio != null ? ` — ${formatPrecio(s.precio)}` : '';
-    const dur = s.duracion != null ? ` (${s.duracion} min)` : '';
-    const catRaw = String(s?.categoria ?? '').trim();
-    const catNorm = normalizeText(catRaw);
-    const etiqueta =
-      catNorm.includes('premium') ? 'Premium' :
-      catNorm.includes('clas') ? 'Clásico' :
-      (catRaw ? catRaw : 'Clásico');
-    return `• ${formatCatalogName(String(s.nombre_servicio || 'Servicio'))} — ${etiqueta}${precio}${dur}`;
-  });
-  return items.join('\n');
-}
-
-function formatBarberos(barberos: any[]): string {
-  return barberos
-    .slice(0, 15)
-    .map((b) => `• ${formatPersonName(b?.nombre, b?.apellido)}`)
-    .filter((l) => l.length > 2)
-    .join('\n');
-}
-
 function showProductCategoryOverview(sessionKey: string, productos: any[]) {
   awaitingProductCategoryBySession.set(sessionKey, true);
   const activos = productos.filter((p) => String(p?.estado || 'activo') === 'activo');
@@ -811,51 +819,59 @@ function formatReservas(rows: any[]): string {
     return fecha < hoy;
   });
 
-  const formatOne = (r: any, idx: number): string => {
-    const fechaRaw = typeof r.fecha === 'string' ? r.fecha.slice(0, 10) : toIsoDate(new Date(r.fecha));
-    const dateObj = new Date(`${fechaRaw}T12:00:00`);
-    const dia = DIAS[dateObj.getDay()];
-    const servicios = r.nombre_servicio || 'Servicio no especificado';
-    const barbero = r.nombre_barbero ? `Barbero: <strong>${r.nombre_barbero}</strong>` : '';
-    const estado = formatEstadoReserva(String(r.estado || ''));
-    const total = r.precio_total ? `Total estimado: <strong>${formatPrecio(r.precio_total)}</strong>` : '';
-
-    let statusStyle = 'color: #999;';
-    if (r.estado === 'confirmada') statusStyle = 'color: #2e7d32; font-weight: bold;';
-    if (r.estado === 'pendiente') statusStyle = 'color: #f57c00; font-weight: bold;';
-    if (r.estado === 'cancelada') statusStyle = 'color: #d32f2f; font-weight: bold;';
-
-    return `
-<div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; background-color: #ffffff; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-  <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; margin-bottom: 6px;">
-    <span style="font-weight: 700; color: #1a1a1a;">#${r.id_reserva} - ${servicios}</span>
-    <span style="${statusStyle}">${estado}</span>
-  </div>
-  <div style="font-size: 0.82rem; color: #4b5563; line-height: 1.4;">
-    <div>📅 <strong>${dia.toUpperCase()}, ${formatFechaLegible(fechaRaw)}</strong></div>
-    <div>⏰ Hora: <strong>${formatHoraLegible(r.hora)}</strong></div>
-    ${barbero ? `<div>✂️ ${barbero}</div>` : ''}
-    ${total ? `<div style="margin-top: 4px; border-top: 1px dashed #f3f4f6; padding-top: 4px; color: #1a1a1a;">💰 ${total}</div>` : ''}
-  </div>
-</div>
-`.replace(/\r?\n\s*/g, '').trim();
+  const badgeStyle: Record<string, { bg: string; color: string; label: string }> = {
+    confirmada:  { bg: '#e8f5e9', color: '#2e7d32', label: 'Confirmada' },
+    pendiente:   { bg: '#fff8e1', color: '#f57c00', label: 'Pendiente' },
+    completada:  { bg: '#f3f4f6', color: '#4b5563', label: 'Completada' },
+    cancelada:   { bg: '#ffebee', color: '#d32f2f', label: 'Cancelada' },
   };
 
-  const partes: string[] = ['<div style="font-weight: 700; margin-bottom: 8px; font-size: 0.95rem;">📅 Tus citas en Blendlap</div>'];
+  const formatOne = (r: any): string => {
+    const fechaRaw = typeof r.fecha === 'string' ? r.fecha.slice(0, 10) : toIsoDate(new Date(r.fecha));
+    const dateObj  = new Date(`${fechaRaw}T12:00:00`);
+    const dia      = DIAS[dateObj.getDay()];
+    const servicio = r.nombre_servicio || 'Servicio no especificado';
+    const barbero  = r.nombre_barbero  || '';
+    const total    = r.precio_total ? formatPrecio(r.precio_total) : '';
+    const badge    = badgeStyle[String(r.estado)] || { bg: '#f3f4f6', color: '#4b5563', label: String(r.estado) };
+
+    const diaStr = dia.charAt(0).toUpperCase() + dia.slice(1);
+
+    return ''
+      + `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;background:#fff;margin-bottom:8px;">`
+        // — fila 1: número + badge estado
+        + `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">`
+          + `<span style="font-size:0.75rem;font-weight:600;color:#9ca3af;">Reserva #${r.id_reserva}</span>`
+          + `<span style="font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:999px;background:${badge.bg};color:${badge.color};">${badge.label}</span>`
+        + `</div>`
+        // — fila 2: nombre del servicio
+        + `<div style="font-weight:700;color:#1a1a1a;font-size:0.88rem;padding-bottom:7px;margin-bottom:7px;border-bottom:1px solid #f3f4f6;">${servicio}</div>`
+        // — fila 3: fecha y hora
+        + `<div style="font-size:0.8rem;color:#374151;line-height:1.75;">`
+          + `<div>${diaStr}, ${formatFechaLegible(fechaRaw)} &nbsp;·&nbsp; ${formatHoraLegible(r.hora)}</div>`
+          + (barbero ? `<div style="color:#4b5563;">Barbero: <strong>${barbero}</strong></div>` : '')
+          + (total   ? `<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #f3f4f6;color:#1a1a1a;">Total: <strong>${total}</strong></div>` : '')
+        + `</div>`
+      + `</div>`;
+  };
+
+  const partes: string[] = [
+    `<div style="font-size:0.82rem;font-weight:700;color:#9ca3af;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:10px;">Mis citas</div>`,
+  ];
 
   if (proximas.length > 0) {
-    partes.push('<div style="font-weight: 600; color: #4b5563; margin-top: 8px; margin-bottom: 6px;">Próximas citas:</div>');
-    partes.push(proximas.slice(0, 10).map((r, i) => formatOne(r, i + 1)).join(''));
+    partes.push(`<div style="font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Próximas</div>`);
+    partes.push(proximas.slice(0, 10).map((r) => formatOne(r)).join(''));
   } else {
-    partes.push('<div style="color: #6b7280; font-style: italic; margin-bottom: 8px;">No tienes citas próximas.</div>');
+    partes.push(`<div style="color:#6b7280;font-size:0.82rem;margin-bottom:8px;">No tienes citas próximas.</div>`);
   }
 
   if (pasadas.length > 0) {
-    partes.push('<div style="font-weight: 600; color: #4b5563; margin-top: 12px; margin-bottom: 6px;">Historial reciente:</div>');
-    partes.push(pasadas.slice(0, 5).map((r, i) => formatOne(r, i + 1)).join(''));
+    partes.push(`<div style="font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-top:12px;margin-bottom:6px;">Historial</div>`);
+    partes.push(pasadas.slice(0, 5).map((r) => formatOne(r)).join(''));
   }
 
-  partes.push('<div style="margin-top: 12px; font-size: 0.8rem; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px;">¿Quieres agendar otra cita? Escríbeme "Agendar cita".</div>');
+  partes.push(`<div style="margin-top:10px;font-size:0.78rem;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:8px;">¿Quieres agendar otra cita? Selecciona "Agendar cita".</div>`);
   return partes.join('');
 }
 
@@ -892,7 +908,7 @@ function getFaqAnswer(msgNorm: string, isGuest = false): string | null {
         '',
         '• Servicios y precios — "Ver servicios"',
         '• Productos de la tienda — "Ver productos"',
-        '• Barberos disponibles — "Ver barberos disponibles"',
+        '• Barberos — "Ver barberos"',
         '• Cómo reservar — "¿Cómo hago una reserva?"',
         '',
         'Para agendar o ver tus citas necesitas iniciar sesión como cliente.',
@@ -911,10 +927,6 @@ function getFaqAnswer(msgNorm: string, isGuest = false): string | null {
     ].join('\n');
   }
 
-  if (/(horario|a que hora abren|cuando abren|donde estan|ubicacion|direccion)/.test(msgNorm)) {
-    return 'Para horarios y ubicación, revisa la sección "Nosotros" del sitio o pregúntame por servicios y te ayudo a agendar en un horario disponible.';
-  }
-
   if (/(cancelar cita|cancelar reserva)/.test(msgNorm)) {
     return 'Para cancelar una cita, entra a tu panel de cliente en el sitio o contacta directamente a la barbería. Por aquí puedo mostrarte tus citas y ayudarte a agendar nuevas.';
   }
@@ -926,7 +938,7 @@ function startBooking(): PendingBooking {
   return { step: 'servicio', servicios_nombres: [], servicios_ids: [] };
 }
 
-function bookingIntro(servicios: any[]): string {
+function bookingIntro(_servicios: any[]): string {
   return [
     '¡Perfecto! Vamos a agendar tu cita paso a paso.',
     '',
@@ -947,6 +959,55 @@ export class ChatService {
       if (authAction.required && authAction.accion) {
         return authRequiredReply(sk, authAction.accion, isGuest);
       }
+    }
+
+    // === Recuperación de contraseña (disponible para invitados y clientes) ===
+    const pendingRec = pendingRecuperacionBySession.get(sk);
+    if (pendingRec) {
+      const recReply = await ChatService.handleRecuperacionStep(sk, args.message, pendingRec, isGuest);
+      if (recReply) return recReply;
+    }
+
+    if (isRecuperacionIntent(msgNorm)) {
+      const newRec: PendingRecuperacion = { step: 'email' };
+      pendingRecuperacionBySession.set(sk, newRec);
+      const cancelOpt = [{ label: 'Cancelar', value: 'cancelar' }];
+
+      // Cliente logueado: usar el correo registrado directamente
+      if (!isGuest && args.id_cliente) {
+        try {
+          const usuario = await UsuarioModel.findById(args.id_cliente);
+          if (usuario?.correo_electronico) {
+            const correo: string = usuario.correo_electronico;
+            await AuthService.solicitarRecuperacion(correo);
+            newRec.correo = correo;
+            newRec.step = 'codigo';
+            newRec.esCliente = true;
+            const mask = correo.replace(/(.{2})([^@]*)(@.*)/, (_: string, a: string, b: string, c: string) =>
+              a + '*'.repeat(Math.max(b.length, 3)) + c
+            );
+            return reply(sk,
+              `Enviamos un código de verificación a tu correo registrado (${mask}).\n\nRevisa tu bandeja de entrada e ingresa el código de 6 dígitos:`,
+              'info',
+              { step: 'codigo_recuperacion', options: cancelOpt }
+            );
+          }
+        } catch (err: any) {
+          pendingRecuperacionBySession.delete(sk);
+          return reply(sk,
+            err?.message || 'No pudimos enviar el código. Intenta más tarde.',
+            'info',
+            { options: mainMenuOptions(isGuest) }
+          );
+        }
+      }
+
+      // Invitado o sin correo: pedir el correo
+      return reply(sk,
+        'Para recuperar tu contraseña necesito verificar tu identidad.\n\nIngresa el correo electrónico asociado a tu cuenta:',
+        'info',
+        { step: 'email_recuperacion', options: cancelOpt }
+      );
     }
 
     if (isPrivateRequest(msgNorm)) {
@@ -990,7 +1051,7 @@ export class ChatService {
           step: 'servicio',
           catalogCards: buildServiceCatalogCards(sortedActivos),
           options: [
-            { label: 'Volver al inicio', value: 'volver al inicio' },
+            { label: 'Volver al menú principal', value: 'volver al inicio' },
             { label: 'Cancelar', value: 'cancelar' }
           ]
         });
@@ -1021,6 +1082,26 @@ export class ChatService {
           'create_reservation',
           {
             step: 'fecha',
+            options: [
+              { label: 'Regresar', value: 'regresar' },
+              { label: 'Cancelar', value: 'cancelar' }
+            ]
+          }
+        );
+      } else if (pending.step === 'confirmar') {
+        pending.hora = undefined;
+        pending.step = 'hora';
+        const servicio = servicios.find((s) => Number(s.id_servicio) === pending.servicios_ids[0]);
+        const duracion = Number(servicio?.duracion) || 30;
+        const disp = await ReservaService.getDisponibilidad(pending.id_barbero!, pending.fecha!, duracion);
+        const libres = (disp.slots || []).filter((s: any) => s.disponible).slice(0, 12);
+        return reply(
+          sk,
+          `Fecha: ${formatFechaLegible(pending.fecha!)}\n\n¿A qué hora quieres la cita?`,
+          'create_reservation',
+          {
+            step: 'hora',
+            slots: libres.map((s: any) => s.hora),
             options: [
               { label: 'Regresar', value: 'regresar' },
               { label: 'Cancelar', value: 'cancelar' }
@@ -1076,12 +1157,152 @@ export class ChatService {
               { label: 'Agendar cita', value: 'Agendar cita' },
               { label: 'Clásicos', value: 'Clásicos' },
               { label: 'Premium', value: 'Premium' },
-              { label: 'Volver al inicio', value: 'Volver al inicio' },
+              { label: 'Volver al menú principal', value: 'Volver al inicio' },
             ],
             isGuest
           ),
         }
       );
+    }
+
+    // === Horarios de atención ===
+    if (/(horario|a que hora abren|cu[aá]ndo abren|abre(n)?|cierra(n)?|horario de atencion|de qu[eé] hora|atienden)/.test(msgNorm)) {
+      try {
+        const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const horarios = await HorarioModel.getHorarioBarberia();
+        const activos = horarios.filter((h) => h.activo);
+        if (activos.length === 0) {
+          return reply(sk, 'En este momento no tenemos horarios registrados. Contáctanos para más información.', 'info', { options: mainMenuOptions(isGuest) });
+        }
+        const lineas = activos.map((h) => `${diasNombres[h.dia_semana]}: ${formatHoraLegible(h.hora_inicio)} – ${formatHoraLegible(h.hora_fin)}`);
+        return reply(sk, `Horarios de atención de Blendlap:\n\n${lineas.join('\n')}`, 'info', { options: mainMenuOptions(isGuest) });
+      } catch {
+        return reply(sk, 'No pude obtener los horarios en este momento. Contáctanos directamente.', 'info', { options: mainMenuOptions(isGuest) });
+      }
+    }
+
+    // === Contacto ===
+    if (isContactoBarberia(msgNorm)) {
+      return reply(sk, [
+        'Puedes contactarnos por los siguientes medios:',
+        '',
+        `WhatsApp: ${BARBERIA_INFO.whatsapp}`,
+        `Instagram: ${BARBERIA_INFO.instagram}`,
+        `Correo: ${BARBERIA_INFO.email}`,
+        `Dirección: ${BARBERIA_INFO.direccion}`,
+        '',
+        '¡Estamos para servirte!',
+      ].join('\n'), 'info', { options: mainMenuOptions(isGuest) });
+    }
+
+    // === Servicio más solicitado ===
+    if (isServicioPopular(msgNorm)) {
+      try {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          `SELECT s.id_servicio, s.nombre_servicio AS nombre, s.imagen, s.precio,
+                  s.duracion, s.descripcion, s.categoria, COUNT(*) AS total
+           FROM reserva_servicio rs
+           JOIN servicio s ON rs.id_servicio = s.id_servicio
+           JOIN reserva r ON r.id_reserva = rs.id_reserva
+           WHERE r.estado != 'cancelada'
+           GROUP BY rs.id_servicio
+           ORDER BY total DESC
+           LIMIT 1`
+        );
+        const top = (rows as any[])[0];
+        if (top) {
+          const precio = top.precio ? `$${Number(top.precio).toLocaleString('es-CO')}` : undefined;
+          const badge = top.categoria
+            ? (String(top.categoria).toLowerCase().includes('premium') ? 'Premium' : 'Clásico')
+            : undefined;
+          const card: ChatCatalogCard = {
+            nombre: top.nombre,
+            subtitulo: precio,
+            imagen: top.imagen || null,
+            mediaFolder: 'servicios',
+            badge,
+          };
+          return reply(sk,
+            `El servicio más solicitado en Blendlap es "${top.nombre}" con ${top.total} reserva${top.total !== 1 ? 's' : ''}.`,
+            'info',
+            { catalogCards: [card], options: mainMenuOptions(isGuest) }
+          );
+        }
+        return reply(sk, 'Aún no hay suficientes reservas para determinar el servicio más solicitado.', 'info', { options: mainMenuOptions(isGuest) });
+      } catch {
+        return reply(sk, 'No pude obtener esa información en este momento.', 'info', { options: mainMenuOptions(isGuest) });
+      }
+    }
+
+    // === Barbero más solicitado ===
+    if (isBarberoPopular(msgNorm)) {
+      try {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          `SELECT CONCAT(u.nombre, ' ', u.apellido) AS nombre, u.foto, u.titulo,
+                  u.especialidades, COUNT(r.id_reserva) AS total,
+                  ROUND(COALESCE(AVG(res.calificacion), 0), 1) AS promedio
+           FROM reserva r
+           JOIN usuario_rol u ON r.id_barbero = u.id_usuario
+           LEFT JOIN resena res ON res.id_barbero = u.id_usuario
+           WHERE r.estado != 'cancelada'
+           GROUP BY r.id_barbero
+           ORDER BY total DESC
+           LIMIT 1`
+        );
+        const top = (rows as any[])[0];
+        if (top) {
+          const promedio = Number(top.promedio);
+          const card: ChatCatalogCard = {
+            nombre: top.nombre,
+            subtitulo: top.titulo || top.especialidades || undefined,
+            imagen: top.foto || null,
+            mediaFolder: 'barberos',
+            badge: promedio > 0 ? `★ ${promedio.toFixed(1)}` : 'Disponible',
+          };
+          return reply(sk,
+            `El barbero más solicitado en Blendlap es ${top.nombre} con ${top.total} reserva${top.total !== 1 ? 's' : ''}.`,
+            'info',
+            { catalogCards: [card], options: mainMenuOptions(isGuest) }
+          );
+        }
+        return reply(sk, 'Aún no hay suficientes reservas para determinar el barbero más solicitado.', 'info', { options: mainMenuOptions(isGuest) });
+      } catch {
+        return reply(sk, 'No pude obtener esa información en este momento.', 'info', { options: mainMenuOptions(isGuest) });
+      }
+    }
+
+    // === Producto más solicitado ===
+    if (/(producto (mas |m[aá]s )?(solicitado|vendido|popular|comprado)|qu[eé] producto (se )?vende m[aá]s|producto favorito|m[aá]s vendido|producto estrella|top producto)/.test(msgNorm)) {
+      try {
+        const [rows] = await pool.execute<RowDataPacket[]>(
+          `SELECT p.nombre_producto AS nombre, p.imagen, p.precio,
+                  p.descripcion, p.categoria, SUM(dv.cantidad) AS total
+           FROM detalle_venta dv
+           JOIN producto p ON dv.id_producto = p.id_producto
+           GROUP BY dv.id_producto
+           ORDER BY total DESC
+           LIMIT 1`
+        );
+        const top = (rows as any[])[0];
+        if (top) {
+          const precio = top.precio ? `$${Number(top.precio).toLocaleString('es-CO')}` : undefined;
+          const card: ChatCatalogCard = {
+            nombre: top.nombre,
+            subtitulo: precio,
+            imagen: top.imagen || null,
+            mediaFolder: 'productos',
+            badge: top.categoria || 'Disponible',
+          };
+          return reply(sk,
+            `El producto más vendido en Blendlap es "${top.nombre}" con ${top.total} unidad${Number(top.total) !== 1 ? 'es' : ''} vendida${Number(top.total) !== 1 ? 's' : ''}.`,
+            'info',
+            { catalogCards: [card], options: mainMenuOptions(isGuest) }
+          );
+        }
+        return reply(sk, 'Aún no hay ventas suficientes para determinar el producto más popular.', 'info', { options: mainMenuOptions(isGuest) });
+      } catch {
+        return reply(sk, 'No pude obtener esa información en este momento.', 'info', { options: mainMenuOptions(isGuest) });
+      }
     }
 
     const faq = getFaqAnswer(msgNorm, isGuest);
@@ -1129,8 +1350,8 @@ export class ChatService {
         : '¿Quieres agendar con alguno? Dime "Agendar cita".';
       const catalogCards = buildBarberCatalogCards(activos);
       const text = activos.length > 0
-        ? `Barberos disponibles ahora:\n\n${ctaBarbero}`
-        : 'En este momento no hay barberos activos/disponibles.';
+        ? `Barberos de Blendlap:\n\n${ctaBarbero}`
+        : 'En este momento no hay barberos activos.';
       return reply(sk, text, 'info', {
         catalogCards: activos.length > 0 ? catalogCards : undefined,
         options: [
@@ -1210,7 +1431,7 @@ export class ChatService {
         step: 'servicio',
         catalogCards: buildServiceCatalogCards(sortedActivos),
         options: [
-          { label: 'Volver al inicio', value: 'volver al inicio' },
+          { label: 'Volver al menú principal', value: 'volver al inicio' },
           { label: 'Cancelar', value: 'cancelar' }
         ]
       });
@@ -1228,32 +1449,31 @@ export class ChatService {
     if (/(hola|buenas|hey|saludos|barbux|blend-?x)/.test(msgNorm)) {
       const intro = isGuest
         ? [
-            '¡Hola! Soy BARBUX, tu asistente de Blendlap.',
+            '¡Hola! Soy BARBUX, el asistente virtual de Blendlap.',
             '',
             'Puedo ayudarte con:',
             '• Servicios y precios',
             '• Productos de la tienda',
             '• Barberos disponibles',
-            '• Cómo hacer una reserva',
+            '• Información sobre cómo agendar una cita',
           ]
         : [
-            '¡Hola! Soy BARBUX, tu asistente de Blendlap.',
+            '¡Hola! Soy BARBUX, el asistente virtual de Blendlap.',
             '',
             'Puedo ayudarte a:',
             '• Agendar citas',
-            '• Ver tus citas',
-            '• Consultar servicios y productos',
-            '• Explicarte cómo reservar',
+            '• Consultar tus reservas',
+            '• Explorar servicios y productos',
             '',
-            'Prueba con: "Agendar cita", "Mis citas" o "Ver productos".',
+            'Selecciona una opción o escríbeme lo que necesitas.',
           ];
       return reply(sk, intro.join('\n'), 'info', { options: mainMenuOptions(isGuest) });
     }
 
     if (!isBarberiaTopic(msgNorm)) {
       const fueraTema = isGuest
-        ? 'No tengo conocimiento sobre ese tema, pero sí puedo ayudarte con servicios, productos y barberos de Blendlap.'
-        : 'No tengo conocimiento sobre ese tema, pero sí te puedo ayudar con cosas en base a la barbería: qué productos hay, qué barberos hay, servicios (Clásicos/Premium), agendar citas y ver tus reservas.';
+        ? 'Lo siento, solo puedo ayudarte con temas relacionados con Blendlap: servicios, productos, barberos y cómo agendar una cita.'
+        : 'Lo siento, ese tema está fuera de mi alcance. Estoy especializado en Blendlap: servicios, productos, barberos, agendamiento de citas y consulta de reservas.';
       return reply(sk, fueraTema, 'info', { options: mainMenuOptions(isGuest) });
     }
 
@@ -1266,12 +1486,11 @@ export class ChatService {
       return reply(
         sk,
         [
-          'No estoy seguro de entender eso.',
+          'No entendí bien tu mensaje. Puedo ayudarte con:',
           '',
-          'Prueba con:',
           '• "Ver servicios"',
           '• "Ver productos"',
-          '• "Ver barberos disponibles"',
+          '• "Ver barberos"',
           '• "¿Cómo hago una reserva?"',
         ].join('\n'),
         'info',
@@ -1317,7 +1536,7 @@ export class ChatService {
       const opts = booking.step === 'servicio'
         ? (booking.id_barbero
            ? [{ label: 'Regresar', value: 'regresar' }, { label: 'Cancelar', value: 'cancelar' }]
-           : [{ label: 'Volver al inicio', value: 'volver al inicio' }, { label: 'Cancelar', value: 'cancelar' }])
+           : [{ label: 'Volver al menú principal', value: 'volver al inicio' }, { label: 'Cancelar', value: 'cancelar' }])
         : booking.step === 'barbero' || booking.step === 'fecha' || booking.step === 'hora'
           ? [{ label: 'Regresar', value: 'regresar' }, { label: 'Cancelar', value: 'cancelar' }]
           : undefined;
@@ -1419,7 +1638,7 @@ export class ChatService {
                   { label: 'Cancelar', value: 'cancelar' }
                 ]
               : [
-                  { label: 'Volver al inicio', value: 'volver al inicio' },
+                  { label: 'Volver al menú principal', value: 'volver al inicio' },
                   { label: 'Cancelar', value: 'cancelar' }
                 ]
           }
@@ -1609,27 +1828,73 @@ export class ChatService {
         );
       }
 
+      pending.hora = hora;
+      pending.step = 'confirmar';
+
+      const resumen = [
+        'Antes de confirmar, revisa los datos de tu cita:',
+        '',
+        `Servicio:  ${pending.servicios_nombres.join(', ')}`,
+        `Barbero:   ${pending.barbero_nombre}`,
+        `Fecha:     ${formatFechaLegible(pending.fecha!)}`,
+        `Hora:      ${formatHoraLegible(hora)}`,
+        '',
+        '¿Confirmas la reserva?',
+      ].join('\n');
+
+      return reply(sessionKey, resumen, 'create_reservation', {
+        step: 'confirmar',
+        options: [
+          { label: 'Confirmar cita', value: 'confirmar' },
+          { label: 'Regresar', value: 'regresar' },
+          { label: 'Cancelar', value: 'cancelar' }
+        ]
+      });
+    }
+
+    if (pending.step === 'confirmar') {
+      const msgNorm = normalizeText(message);
+      const esConfirmacion = /^(confirmar|confirmar cita|si|si|ok|listo|confirmo|aceptar|aceptar cita|dale|si confirmo|yes)$/.test(msgNorm);
+      if (!esConfirmacion) {
+        const recordatorio = [
+          'Por favor confirma o cancela tu cita:',
+          '',
+          `Servicio:  ${pending.servicios_nombres.join(', ')}`,
+          `Barbero:   ${pending.barbero_nombre}`,
+          `Fecha:     ${formatFechaLegible(pending.fecha!)}`,
+          `Hora:      ${formatHoraLegible(pending.hora!)}`,
+        ].join('\n');
+        return reply(sessionKey, recordatorio, 'create_reservation', {
+          step: 'confirmar',
+          options: [
+            { label: 'Confirmar cita', value: 'confirmar' },
+            { label: 'Regresar', value: 'regresar' },
+            { label: 'Cancelar', value: 'cancelar' }
+          ]
+        });
+      }
+
       try {
         const created = await ReservaService.create({
           id_cliente,
-          id_barbero: pending.id_barbero,
-          fecha: pending.fecha,
-          hora,
+          id_barbero: pending.id_barbero!,
+          fecha: pending.fecha!,
+          hora: pending.hora!,
           servicios: pending.servicios_ids,
         });
 
         pendingBookingBySession.delete(sessionKey);
 
         const confirmacion = [
-          '✅ ¡Cita agendada con éxito!',
+          'Cita agendada con éxito.',
           '',
-          `Servicio: ${pending.servicios_nombres.join(', ')}`,
-          `Barbero: ${pending.barbero_nombre}`,
-          `Fecha: ${formatFechaLegible(pending.fecha)}`,
-          `Hora: ${formatHoraLegible(hora)}`,
-          `Número de reserva: #${(created as any).id_reserva}`,
+          `Servicio:  ${pending.servicios_nombres.join(', ')}`,
+          `Barbero:   ${pending.barbero_nombre}`,
+          `Fecha:     ${formatFechaLegible(pending.fecha!)}`,
+          `Hora:      ${formatHoraLegible(pending.hora!)}`,
+          `N.° de reserva: #${(created as any).id_reserva}`,
           '',
-          'Te esperamos en Blendlap. Si necesitas ver tus citas, escribe "Mis citas".',
+          'Te esperamos en Blendlap.',
         ].join('\n');
 
         return reply(sessionKey, confirmacion, 'create_reservation', {
@@ -1642,13 +1907,153 @@ export class ChatService {
           err?.message || 'No pude crear la reserva. Intenta con otra hora o fecha.',
           'create_reservation',
           {
-            step: 'hora',
+            step: 'confirmar',
             options: [
+              { label: 'Confirmar cita', value: 'confirmar' },
               { label: 'Regresar', value: 'regresar' },
               { label: 'Cancelar', value: 'cancelar' }
             ]
           }
         );
+      }
+    }
+
+    return null;
+  }
+
+  private static async handleRecuperacionStep(
+    sessionKey: string,
+    rawMessage: string,
+    pending: PendingRecuperacion,
+    isGuest: boolean
+  ): Promise<{ reply: string; intent: ChatIntent; meta?: any } | null> {
+    const raw = rawMessage.trim();
+    const rawNorm = normalizeText(raw);
+    const cancelOpt = [{ label: 'Cancelar', value: 'cancelar' }];
+    const backCancelOpt = [
+      { label: 'Regresar', value: 'regresar' },
+      { label: 'Cancelar', value: 'cancelar' },
+    ];
+
+    // ── Cancelar ──────────────────────────────────────────────
+    if (rawNorm === 'cancelar') {
+      pendingRecuperacionBySession.delete(sessionKey);
+      return reply(sessionKey,
+        'Proceso de recuperación cancelado.',
+        'info', { options: mainMenuOptions(isGuest), freshStart: false });
+    }
+
+    // ── Regresar ───────────────────────────────────────────────
+    if (rawNorm === 'regresar') {
+      if (pending.step === 'codigo') {
+        if (pending.esCliente) {
+          // No hay paso anterior para el cliente (email fue automático) → cancelar
+          pendingRecuperacionBySession.delete(sessionKey);
+          return reply(sessionKey,
+            'Para solicitar un nuevo código selecciona "Recuperar contraseña" del menú.',
+            'info', { options: mainMenuOptions(isGuest) });
+        }
+        // Invitado → volver al email
+        pending.step = 'email';
+        pending.correo = undefined;
+        return reply(sessionKey,
+          'Ingresa de nuevo el correo electrónico asociado a tu cuenta:',
+          'info', { step: 'email_recuperacion', options: cancelOpt });
+      }
+      if (pending.step === 'nueva_pass') {
+        pending.step = 'codigo';
+        pending.nueva_contrasena = undefined;
+        return reply(sessionKey,
+          `Ingresa de nuevo el código de 6 dígitos enviado a ${pending.correo}:`,
+          'info', { step: 'codigo_recuperacion', options: backCancelOpt });
+      }
+      if (pending.step === 'confirmar_pass') {
+        pending.step = 'nueva_pass';
+        pending.nueva_contrasena = undefined;
+        return reply(sessionKey,
+          'Ingresa de nuevo tu nueva contraseña (mínimo 6 caracteres):',
+          'info', { step: 'nueva_pass', options: backCancelOpt });
+      }
+    }
+
+    // ── Email ──────────────────────────────────────────────────
+    if (pending.step === 'email') {
+      const correo = raw;
+      if (!correo.includes('@') || !correo.includes('.')) {
+        return reply(sessionKey,
+          'El correo ingresado no parece válido. Escribe un correo electrónico correcto:',
+          'info', { step: 'email_recuperacion', options: cancelOpt });
+      }
+      try {
+        await AuthService.solicitarRecuperacion(correo);
+        pending.correo = correo;
+        pending.step = 'codigo';
+        return reply(sessionKey,
+          `Enviamos un código de 6 dígitos a ${correo}.\n\nRevisa tu bandeja de entrada y escríbelo aquí:`,
+          'info', { step: 'codigo_recuperacion', options: backCancelOpt });
+      } catch (err: any) {
+        return reply(sessionKey,
+          err?.message || 'No encontramos una cuenta con ese correo. Verifica e intenta de nuevo:',
+          'info', { step: 'email_recuperacion', options: cancelOpt });
+      }
+    }
+
+    // ── Código ─────────────────────────────────────────────────
+    if (pending.step === 'codigo') {
+      const codigo = raw.replace(/\s/g, '');
+      if (!/^\d{6}$/.test(codigo)) {
+        return reply(sessionKey,
+          'El código debe tener exactamente 6 dígitos. Ingrésalo de nuevo:',
+          'info', { step: 'codigo_recuperacion', options: pending.esCliente ? cancelOpt : backCancelOpt });
+      }
+      pending.codigo = codigo;
+      pending.step = 'nueva_pass';
+      return reply(sessionKey,
+        'Código verificado. Ahora ingresa tu nueva contraseña (mínimo 6 caracteres):',
+        'info', { step: 'nueva_pass', options: backCancelOpt });
+    }
+
+    // ── Nueva contraseña ───────────────────────────────────────
+    if (pending.step === 'nueva_pass') {
+      const pass = raw;
+      if (pass.length < 6) {
+        return reply(sessionKey,
+          'La contraseña debe tener al menos 6 caracteres. Ingresa una más segura:',
+          'info', { step: 'nueva_pass', options: backCancelOpt });
+      }
+      pending.nueva_contrasena = pass;
+      pending.step = 'confirmar_pass';
+      return reply(sessionKey,
+        'Confirma tu nueva contraseña escribiéndola de nuevo:',
+        'info', { step: 'confirmar_pass', options: backCancelOpt });
+    }
+
+    // ── Confirmar contraseña ───────────────────────────────────
+    if (pending.step === 'confirmar_pass') {
+      const pass = raw;
+      if (pass !== pending.nueva_contrasena) {
+        pending.step = 'nueva_pass';
+        pending.nueva_contrasena = undefined;
+        return reply(sessionKey,
+          'Las contraseñas no coinciden. Ingresa de nuevo tu nueva contraseña:',
+          'info', { step: 'nueva_pass', options: backCancelOpt });
+      }
+      try {
+        await AuthService.resetearPassword(pending.correo!, pending.codigo!, pending.nueva_contrasena!);
+        pendingRecuperacionBySession.delete(sessionKey);
+        return reply(sessionKey,
+          'Tu contraseña fue actualizada con éxito.\n\nYa puedes iniciar sesión con tu nueva contraseña.',
+          'info', { options: [
+            { label: 'Iniciar sesión', value: 'iniciar sesion' },
+            { label: 'Volver al menú principal', value: 'Volver al inicio' },
+          ]});
+      } catch (err: any) {
+        pending.step = 'codigo';
+        pending.codigo = undefined;
+        pending.nueva_contrasena = undefined;
+        return reply(sessionKey,
+          (err?.message || 'El código es inválido o expiró.') + '\n\nIngresa de nuevo el código de 6 dígitos:',
+          'info', { step: 'codigo_recuperacion', options: pending.esCliente ? cancelOpt : backCancelOpt });
       }
     }
 
@@ -1724,9 +2129,7 @@ Intents:
       logger.error(`Error llamando a Ollama: ${err?.message || err}`);
       return {
         intent: 'info',
-        message:
-          'La IA no está disponible ahora mismo. Si estás usando Docker, levanta Ollama con `docker compose up -d ollama` ' +
-          'y descarga el modelo con `docker compose exec ollama ollama pull llama3.2:1b`.',
+        message: 'No pude entender tu pregunta. Intenta ser más específico o elige una opción del menú.',
       };
     }
   }
