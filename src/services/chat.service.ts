@@ -28,9 +28,28 @@ type ChatProductCard = {
 type ChatCatalogCard = {
   nombre: string;
   subtitulo?: string;
+  subtitulo2?: string;
   imagen: string | null;
   mediaFolder: 'productos' | 'barberos' | 'servicios';
   badge?: string;
+};
+
+type CategoryOverviewItem = {
+  label: string;
+  descripcion: string;
+  productos: string;
+  btnLabel: string;
+  btnValue: string;
+  icon: string;
+};
+
+type ServiceOverviewItem = {
+  label: string;
+  descripcion: string;
+  servicios: string;
+  btnLabel: string;
+  btnValue: string;
+  icon: string;
 };
 
 type ChatMeta = {
@@ -39,6 +58,8 @@ type ChatMeta = {
   slots?: string[];
   products?: ChatProductCard[];
   catalogCards?: ChatCatalogCard[];
+  categoryOverview?: CategoryOverviewItem[];
+  serviceOverview?: ServiceOverviewItem[];
   requiresAuth?: boolean;
   freshStart?: boolean;
   [key: string]: unknown;
@@ -330,11 +351,10 @@ function reply(
 
 function guestMenuOptions(): MenuOption[] {
   return [
-    { label: '¿Cómo hago una reserva?', value: '¿Cómo hago una reserva?' },
+    { label: 'Recuperar contraseña', value: 'Recuperar contraseña' },
     { label: 'Ver servicios', value: 'Ver servicios' },
     { label: 'Ver productos', value: 'Ver productos' },
     { label: 'Ver barberos', value: 'Ver barberos' },
-    { label: 'Recuperar contraseña', value: 'Recuperar contraseña' },
     { label: 'Volver al menú principal', value: 'Volver al inicio' },
   ];
 }
@@ -350,12 +370,11 @@ function filterGuestOptions(options: MenuOption[], isGuest: boolean): MenuOption
 function mainMenuOptions(isGuest = false): MenuOption[] {
   if (isGuest) return guestMenuOptions();
   return [
+    { label: 'Recuperar contraseña', value: 'Recuperar contraseña' },
     { label: 'Agendar cita', value: 'Agendar cita' },
-    { label: '¿Cómo hago una reserva?', value: '¿Cómo hago una reserva?' },
     { label: 'Ver servicios', value: 'Ver servicios' },
     { label: 'Ver productos', value: 'Ver productos' },
     { label: 'Ver barberos', value: 'Ver barberos' },
-    { label: 'Recuperar contraseña', value: 'Recuperar contraseña' },
     { label: 'Volver al menú principal', value: 'Volver al inicio' },
   ];
 }
@@ -364,12 +383,7 @@ function isRecuperacionIntent(msgNorm: string): boolean {
   return /(recuperar (contrasena|password|clave)|olvide (mi )?(contrasena|password|clave)|cambiar contrasena|restablecer (contrasena|password)|no recuerdo (mi )?(contrasena|password)|resetear contrasena|recuperacion de contrasena|recuperar contrasena)/.test(msgNorm);
 }
 
-function isReservationHowToQuestion(msgNorm: string): boolean {
-  return /(como (hago|se hace|reservo|agendo|reserv)|pasos para reservar|como funciona (la )?reserva|que necesito para reservar)/.test(msgNorm);
-}
-
 function wantsToBook(msgNorm: string): boolean {
-  if (isReservationHowToQuestion(msgNorm)) return false;
   return /(agendar|agenda cita|reserv|hacer cita|quiero cita|necesito cita|programar cita|solicitar cita|pedir cita|quiero una cita|hacer una reserva|hacer reservas)/.test(msgNorm);
 }
 
@@ -407,21 +421,11 @@ function productCategoryLabel(cat: string): string {
     barberia: 'Barbería',
     ropa: 'Ropa',
     accesorios: 'Accesorios',
-    cuidado: 'Cuidado',
+    cuidado: 'Cuidado Personal',
   };
   return map[cat] || cat;
 }
 
-function productCategoryOptions(): MenuOption[] {
-  return [
-    { label: 'Barbería', value: 'Barbería' },
-    { label: 'Ropa', value: 'Ropa' },
-    { label: 'Accesorios', value: 'Accesorios' },
-    { label: 'Cuidado', value: 'Cuidado' },
-    { label: 'Ver todas las categorías', value: 'Ver productos' },
-    { label: 'Volver al menú principal', value: 'Volver al inicio' },
-  ];
-}
 
 function matchProductCategory(msgNorm: string): ProductCategoryKey | null {
   if (msgNorm.startsWith('cat:')) {
@@ -429,10 +433,15 @@ function matchProductCategory(msgNorm: string): ProductCategoryKey | null {
     if (PRODUCT_CATEGORY_KEYS.includes(key)) return key;
   }
 
+  if (/ver productos de barber/.test(msgNorm)) return 'barberia';
+  if (/ver productos de ropa/.test(msgNorm)) return 'ropa';
+  if (/ver productos de accesorio/.test(msgNorm)) return 'accesorios';
+  if (/ver productos de cuidado/.test(msgNorm)) return 'cuidado';
+
   if (/(barberia|barbería|productos de barberia)/.test(msgNorm)) return 'barberia';
   if (/(ropa|prendas|vestimenta)/.test(msgNorm) && !/accesorio/.test(msgNorm)) return 'ropa';
   if (/(accesorios|accesorio)/.test(msgNorm)) return 'accesorios';
-  if (/(cuidado|capilar|shampoo|acondicionador)/.test(msgNorm)) return 'cuidado';
+  if (/(cuidado personal|cuidado|capilar|shampoo|acondicionador)/.test(msgNorm)) return 'cuidado';
 
   return null;
 }
@@ -459,70 +468,21 @@ function simplifyProductName(fullName: string): string {
   return word + 'es';
 }
 
-function formatProductosPorCategoria(productos: any[]): string {
-  const activos = productos.filter((p) => String(p?.estado || 'activo') === 'activo');
-  const bloques: string[] = ['En la tienda de Blendlap tenemos estas categorías de productos:\n'];
 
-  for (const cat of PRODUCT_CATEGORY_KEYS) {
-    const items = activos.filter((p) => productMatchesCategory(p, cat));
-    let listaTerminos: string[] = [];
-    if (items.length > 0) {
-      listaTerminos = [...new Set(items.map((p) => simplifyProductName(String(p.nombre_producto || ''))))];
-    }
 
-    let descripcion = '';
-    if (cat === 'barberia') {
-      const terminos = listaTerminos.length > 0 ? listaTerminos.join(', ') : 'ceras, aceites, bálsamos';
-      descripcion = `Tenemos: ${terminos}.`;
-    } else if (cat === 'ropa') {
-      const terminos = listaTerminos.length > 0 ? listaTerminos.join(', ') : 'camisas, pantalones, jeans';
-      descripcion = `Prendas con estilo en Blendlap como: ${terminos}.`;
-    } else if (cat === 'accesorios') {
-      const terminos = listaTerminos.length > 0 ? listaTerminos.join(', ') : 'gorras, peines, navajas';
-      descripcion = `Accesorios con estilo en Blendlap como: ${terminos}.`;
-    } else if (cat === 'cuidado') {
-      const terminos = listaTerminos.length > 0 ? listaTerminos.join(', ') : 'shampoos, acondicionadores';
-      descripcion = `Productos para tu cuidado personal en Blendlap como: ${terminos}.`;
-    } else {
-      const terminos = listaTerminos.length > 0 ? listaTerminos.join(', ') : 'artículos varios';
-      descripcion = `Tenemos: ${terminos}.`;
-    }
-
-    bloques.push(
-      `\n${productCategoryLabel(cat)}:`,
-      descripcion
-    );
-  }
-
-  bloques.push('\n\n¿Qué categoría quieres ver? Elige una opción.');
-  return bloques.join('\n');
-}
-
-function buildProductCards(productos: any[]): ChatProductCard[] {
+function buildProductCatalogCards(productos: any[]): ChatCatalogCard[] {
   return productos
     .filter((p) => String(p?.estado || 'activo') === 'activo')
-    .slice(0, 12)
     .map((p) => {
       const catLabel = productCategoryLabel(String(p.categoria || ''));
       const precio = formatPrecio(p.precio);
-      const precioConCat = catLabel ? `${catLabel} · ${precio}` : precio;
       return {
         nombre: formatCatalogName(String(p.nombre_producto || 'Producto')),
-        precio: precioConCat,
+        subtitulo: catLabel ? `${catLabel} · ${precio}` : precio,
         imagen: p.imagen ? String(p.imagen) : null,
-        disponible: Number(p.stock) > 0,
+        mediaFolder: 'productos' as const,
       };
     });
-}
-
-function buildProductCatalogCards(productos: any[]): ChatCatalogCard[] {
-  return buildProductCards(productos).map((p) => ({
-    nombre: p.nombre,
-    subtitulo: p.precio,
-    imagen: p.imagen,
-    mediaFolder: 'productos' as const,
-    badge: p.disponible ? 'Disponible' : 'Agotado',
-  }));
 }
 
 function buildServiceCatalogCards(servicios: any[]): ChatCatalogCard[] {
@@ -555,10 +515,12 @@ function buildBarberCatalogCards(barberos: any[]): ChatCatalogCard[] {
     .filter((b) => String(b?.estado || '').toLowerCase() === 'activo')
     .slice(0, 12)
     .map((b) => {
-      const subtitulo = [b.titulo, b.especialidades].filter(Boolean).join(' · ');
+      const exp = Number(b.experiencia) || 0;
+      const expStr = exp > 0 ? `${exp} año${exp !== 1 ? 's' : ''} de experiencia` : null;
       return {
         nombre: formatPersonName(b.nombre, b.apellido),
-        subtitulo: subtitulo || 'Barbero profesional',
+        subtitulo: b.titulo || 'Barbero profesional',
+        subtitulo2: expStr || undefined,
         imagen: b.foto ? String(b.foto) : null,
         mediaFolder: 'barberos' as const,
         badge: 'Disponible',
@@ -572,22 +534,6 @@ function classifyServiceCategory(servicio: any): 'clasico' | 'premium' {
   return 'clasico';
 }
 
-function formatServiciosPorCategoria(servicios: any[]): {
-  clasicos: any[];
-  premium: any[];
-  text: string;
-} {
-  const clasicos = servicios.filter((s) => classifyServiceCategory(s) === 'clasico');
-  const premium = servicios.filter((s) => classifyServiceCategory(s) === 'premium');
-
-  const text = [
-    'Tenemos dos categorías de servicios: Clásicos y Premium.',
-    '',
-    '¿Qué categoría te interesa? Elige Clásicos o Premium.',
-  ].join('\n');
-
-  return { clasicos, premium, text };
-}
 
 function isPrivateRequest(msgNorm: string): boolean {
   return /(contrase|password|clave de otro|datos de otro|otro cliente|panel admin|ventas totales|cuanto gana|informacion interna|base de datos|usuarios registrados|correo de otro|telefono de otro)/.test(msgNorm);
@@ -753,6 +699,47 @@ function matchServicios(text: string, servicios: any[]): { ids: number[]; nombre
   };
 }
 
+function buildServiceOverview(servicios: any[]): ServiceOverviewItem[] {
+  const activos = servicios.filter((s) => String(s?.estado || 'activo') === 'activo');
+  const clasicos = activos.filter((s) => classifyServiceCategory(s) === 'clasico');
+  const premium  = activos.filter((s) => classifyServiceCategory(s) === 'premium');
+
+  const toList = (arr: any[]) => {
+    const names = [...new Set(arr.map((s) => {
+      const n = String(s.nombre_servicio || '').trim();
+      return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+    }))];
+    return names.length ? names.join(', ') : 'Próximamente disponibles';
+  };
+
+  return [
+    {
+      label: 'Clásicos',
+      descripcion: 'Los esenciales para tu corte y cuidado diario.',
+      servicios: toList(clasicos),
+      btnLabel: 'Ver servicios clásicos',
+      btnValue: 'Ver servicios clásicos',
+      icon: 'fas fa-cut',
+    },
+    {
+      label: 'Premium',
+      descripcion: 'Experiencias exclusivas para el caballero exigente.',
+      servicios: toList(premium),
+      btnLabel: 'Ver servicios premium',
+      btnValue: 'Ver servicios premium',
+      icon: 'fas fa-star',
+    },
+  ];
+}
+
+function showServiceOverview(sessionKey: string, servicios: any[]) {
+  awaitingServiceCategoryBySession.set(sessionKey, true);
+  return reply(sessionKey, 'Elige la categoría de servicios que te interesa.', 'info', {
+    serviceOverview: buildServiceOverview(servicios),
+    options: [{ label: 'Volver al menú principal', value: 'Volver al inicio' }],
+  });
+}
+
 function matchBarbero(text: string, barberos: any[]): any | null {
   const t = normalizeText(text);
   return barberos.find((b) => {
@@ -762,13 +749,49 @@ function matchBarbero(text: string, barberos: any[]): any | null {
   }) || null;
 }
 
+const CAT_CONFIG: Array<{
+  key: ProductCategoryKey; label: string; descripcion: string; defaultItems: string; icon: string;
+}> = [
+  { key: 'barberia',   label: 'Barbería',        descripcion: 'Todo para el cuidado de tu barba y cabello.',    defaultItems: 'Aceites, bálsamos, ceras, minoxidil, pomadas y shampoos', icon: 'fas fa-cut' },
+  { key: 'ropa',       label: 'Ropa',             descripcion: 'Prendas con el estilo exclusivo de Blendlap.',   defaultItems: 'Camisas, camisetas, jeans, bermudas, pantalonetas y tenis', icon: 'fas fa-tshirt' },
+  { key: 'accesorios', label: 'Accesorios',       descripcion: 'Complementa tu estilo con nuestros accesorios.', defaultItems: 'Gorras, relojes, correas y bolsos', icon: 'fas fa-glasses' },
+  { key: 'cuidado',    label: 'Cuidado Personal', descripcion: 'Productos para tu rutina diaria.',               defaultItems: 'Cremas, lociones, perfumes y sérums', icon: 'fas fa-spa' },
+];
+
+function buildCategoryOverview(productos: any[]): CategoryOverviewItem[] {
+  const activos = productos.filter((p) => String(p?.estado || 'activo') === 'activo');
+  return CAT_CONFIG.map(({ key, label, descripcion, defaultItems, icon }) => {
+    const items = activos.filter((p) => productMatchesCategory(p, key));
+    let productosStr = defaultItems;
+    if (items.length > 0) {
+      const raw = [...new Set(items.map((p) => simplifyProductName(String(p.nombre_producto || ''))))].join(', ');
+      productosStr = raw.charAt(0).toUpperCase() + raw.slice(1);
+    }
+    return { label, descripcion, productos: productosStr, btnLabel: `Ver productos de ${label}`, btnValue: `Ver productos de ${label}`, icon };
+  });
+}
+
 function showProductCategoryOverview(sessionKey: string, productos: any[]) {
   awaitingProductCategoryBySession.set(sessionKey, true);
+  return reply(sessionKey, 'Explora nuestras categorías y encuentra lo que necesitas.', 'info', {
+    categoryOverview: buildCategoryOverview(productos),
+    options: [
+      { label: 'Ver todas las categorías', value: 'Ver todas las categorías' },
+      { label: 'Volver al menú principal', value: 'Volver al inicio' },
+    ],
+  });
+}
+
+function showAllProducts(sessionKey: string, productos: any[]) {
+  awaitingProductCategoryBySession.set(sessionKey, true);
   const activos = productos.filter((p) => String(p?.estado || 'activo') === 'activo');
-  const catalogCards = buildProductCatalogCards(activos.slice(0, 4));
-  return reply(sessionKey, formatProductosPorCategoria(productos), 'info', {
+  const catalogCards = buildProductCatalogCards(activos);
+
+  return reply(sessionKey, 'Todos los productos disponibles en Blendlap:', 'info', {
     catalogCards,
-    options: productCategoryOptions(),
+    options: [
+      { label: 'Volver al menú principal', value: 'Volver al inicio' },
+    ],
   });
 }
 
@@ -780,27 +803,23 @@ function showProductsInCategory(sessionKey: string, productos: any[], cat: Produ
   const label = productCategoryLabel(cat);
 
   if (subset.length === 0) {
-    return reply(
-      sessionKey,
-      `No hay productos activos en la categoría ${label} por ahora.\n\n¿Quieres ver otra categoría?`,
-      'info',
-      { options: productCategoryOptions() }
-    );
+    return reply(sessionKey, `No hay productos en la categoría ${label} por el momento.`, 'info', {
+      categoryOverview: buildCategoryOverview(productos),
+      options: [
+        { label: 'Ver todas las categorías', value: 'Ver todas las categorías' },
+        { label: 'Volver al menú principal', value: 'Volver al inicio' },
+      ],
+    });
   }
 
-  const cards = buildProductCards(subset);
-  const catalogCards = buildProductCatalogCards(subset);
-
-  return reply(
-    sessionKey,
-    `Productos en ${label}:\n\nPuedes comprarlos en la sección Productos del sitio.`,
-    'info',
-    {
-      products: cards,
-      catalogCards,
-      options: productCategoryOptions(),
-    }
-  );
+  return reply(sessionKey, `Productos de ${label}:`, 'info', {
+    catalogCards: buildProductCatalogCards(subset),
+    categoryOverview: buildCategoryOverview(productos),
+    options: [
+      { label: 'Ver todas las categorías', value: 'Ver todas las categorías' },
+      { label: 'Volver al menú principal', value: 'Volver al inicio' },
+    ],
+  });
 }
 
 function formatReservas(rows: any[]): string {
@@ -876,31 +895,6 @@ function formatReservas(rows: any[]): string {
 }
 
 function getFaqAnswer(msgNorm: string, isGuest = false): string | null {
-  if (/(como (hago|se hace|reservo|agendo)|como funciona (la )?reserva|pasos para reservar)/.test(msgNorm)) {
-    if (isGuest) {
-      return [
-        'Así puedes reservar en Blendlap:',
-        '',
-        '1. Regístrate o inicia sesión como cliente.',
-        '2. Usa la página "Agendar" del sitio o escríbeme "Agendar cita" aquí en el chat.',
-        '3. Elige servicio, barbero, fecha y hora.',
-        '4. Recibes la confirmación al instante.',
-      ].join('\n');
-    }
-    return [
-      'Así puedes reservar en Blendlap:',
-      '',
-      '1. Escríbeme "Agendar cita" y te guiaré paso a paso.',
-      '2. Elige el servicio (corte, barba, etc.).',
-      '3. Elige barbero, fecha y hora disponible.',
-      '4. Confirmo tu cita al instante.',
-      '',
-      'También puedes reservar desde la página "Agendar" del sitio.',
-      '',
-      'Solo uso la información necesaria para tu cita. No comparto datos de otros clientes.',
-    ].join('\n');
-  }
-
   if (/(que puedes hacer|que sabes hacer|ayuda|comandos|menu|opciones)/.test(msgNorm)) {
     if (isGuest) {
       return [
@@ -938,7 +932,7 @@ function startBooking(): PendingBooking {
   return { step: 'servicio', servicios_nombres: [], servicios_ids: [] };
 }
 
-function bookingIntro(_servicios: any[]): string {
+function bookingIntro(): string {
   return [
     '¡Perfecto! Vamos a agendar tu cita paso a paso.',
     '',
@@ -1047,7 +1041,7 @@ export class ChatService {
           if (catA === 'clasico' && catB === 'premium') return 1;
           return 0;
         });
-        return reply(sk, bookingIntro(sortedActivos), 'create_reservation', {
+        return reply(sk, bookingIntro(), 'create_reservation', {
           step: 'servicio',
           catalogCards: buildServiceCatalogCards(sortedActivos),
           options: [
@@ -1141,28 +1135,19 @@ export class ChatService {
       const categoria = choosePremium ? 'premium' : 'clasico';
       const titulo = choosePremium ? 'Servicios Premium' : 'Servicios Clásicos';
       const subset = servicios.filter((s) => classifyServiceCategory(s) === categoria);
-      const ctaAgendar = isGuest
-        ? '¿Te interesa alguno? Puedes preguntarme más detalles.'
-        : '¿Quieres que te agende una cita con alguno?';
       const catalogCards = buildServiceCatalogCards(subset);
-      awaitingServiceCategoryBySession.delete(sk);
-      return reply(
-        sk,
-        `${titulo}:\n\n${ctaAgendar}`,
-        'info',
-        {
-          catalogCards,
-          options: filterGuestOptions(
-            [
-              { label: 'Agendar cita', value: 'Agendar cita' },
-              { label: 'Clásicos', value: 'Clásicos' },
-              { label: 'Premium', value: 'Premium' },
-              { label: 'Volver al menú principal', value: 'Volver al inicio' },
-            ],
-            isGuest
-          ),
-        }
-      );
+      awaitingServiceCategoryBySession.set(sk, true);
+      return reply(sk, `${titulo}:`, 'info', {
+        catalogCards,
+        serviceOverview: buildServiceOverview(servicios),
+        options: filterGuestOptions(
+          [
+            { label: 'Agendar cita', value: 'Agendar cita' },
+            { label: 'Volver al menú principal', value: 'Volver al inicio' },
+          ],
+          isGuest
+        ),
+      });
     }
 
     // === Horarios de atención ===
@@ -1310,10 +1295,20 @@ export class ChatService {
 
     const awaitingProductCat = awaitingProductCategoryBySession.get(sk) === true;
     const productCat = matchProductCategory(msgNorm);
+    const wantsAllCategories = /^ver todas las categor/.test(msgNorm);
+    const wantsSpecificCatButton = /^ver productos de /.test(msgNorm);
     const wantsProducts = /(producto|productos|tienda|comprar|catalogo)/.test(msgNorm);
 
-    if (wantsProducts || productCat) {
+    if (wantsProducts || productCat || wantsAllCategories || wantsSpecificCatButton) {
       const productos = await ProductoModel.findAll();
+
+      if (wantsAllCategories) {
+        return showAllProducts(sk, productos);
+      }
+
+      if (wantsSpecificCatButton && productCat) {
+        return showProductsInCategory(sk, productos, productCat);
+      }
 
       if (productCat && (msgNorm.startsWith('cat:') || awaitingProductCat)) {
         return showProductsInCategory(sk, productos, productCat);
@@ -1327,15 +1322,7 @@ export class ChatService {
     }
 
     if ((/(servicio|servicios|precio|precios|costo|cuanto vale|tarifa)/.test(msgNorm) && !/(producto|productos)/.test(msgNorm))) {
-      awaitingServiceCategoryBySession.set(sk, true);
-      const grouped = formatServiciosPorCategoria(servicios);
-      const catalogCards = buildServiceCatalogCards(servicios);
-      return reply(sk, grouped.text, 'info', {
-        catalogCards,
-        options: [
-          { label: 'Cancelar', value: 'cancelar' }
-        ]
-      });
+      return showServiceOverview(sk, servicios);
     }
 
     if (wantsToViewBookings(msgNorm)) {
@@ -1345,18 +1332,18 @@ export class ChatService {
 
     if (/(barbero|barberos|estilistas?)/.test(msgNorm) && !/(agendar|reserv)/.test(msgNorm)) {
       const activos = barberos.filter((b: any) => String(b?.estado || '').toLowerCase() === 'activo');
-      const ctaBarbero = isGuest
-        ? '¿Quieres saber más sobre alguno?'
-        : '¿Quieres agendar con alguno? Dime "Agendar cita".';
-      const catalogCards = buildBarberCatalogCards(activos);
-      const text = activos.length > 0
-        ? `Barberos de Blendlap:\n\n${ctaBarbero}`
-        : 'En este momento no hay barberos activos.';
-      return reply(sk, text, 'info', {
-        catalogCards: activos.length > 0 ? catalogCards : undefined,
-        options: [
-          { label: 'Cancelar', value: 'cancelar' }
-        ]
+      if (activos.length === 0) {
+        return reply(sk, 'En este momento no hay barberos activos.', 'info', { options: mainMenuOptions(isGuest) });
+      }
+      return reply(sk, 'Barberos de Blendlap:', 'info', {
+        catalogCards: buildBarberCatalogCards(activos),
+        options: filterGuestOptions(
+          [
+            { label: 'Agendar cita', value: 'Agendar cita' },
+            { label: 'Volver al menú principal', value: 'Volver al inicio' },
+          ],
+          isGuest
+        ),
       });
     }
 
@@ -1427,7 +1414,7 @@ export class ChatService {
         return 0;
       });
 
-      return reply(sk, bookingIntro(sortedActivos), 'create_reservation', {
+      return reply(sk, bookingIntro(), 'create_reservation', {
         step: 'servicio',
         catalogCards: buildServiceCatalogCards(sortedActivos),
         options: [
@@ -1485,14 +1472,7 @@ export class ChatService {
 
       return reply(
         sk,
-        [
-          'No entendí bien tu mensaje. Puedo ayudarte con:',
-          '',
-          '• "Ver servicios"',
-          '• "Ver productos"',
-          '• "Ver barberos"',
-          '• "¿Cómo hago una reserva?"',
-        ].join('\n'),
+        'No entendí bien tu mensaje. Puedo ayudarte con:',
         'info',
         { options: mainMenuOptions(true) }
       );
@@ -1547,7 +1527,7 @@ export class ChatService {
           ? buildBarberCatalogCards(barberos.filter((b: any) => String(b?.estado || '').toLowerCase() === 'activo'))
           : undefined;
 
-      return reply(sk, bookingIntro(sortedActivos), 'create_reservation', {
+      return reply(sk, bookingIntro(), 'create_reservation', {
         step: booking.step,
         catalogCards,
         options: opts
