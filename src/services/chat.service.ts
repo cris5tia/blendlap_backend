@@ -989,7 +989,7 @@ export class ChatService {
         } catch (err: any) {
           pendingRecuperacionBySession.delete(sk);
           return reply(sk,
-            err?.message || 'No pudimos enviar el código. Intenta más tarde.',
+            'No pude enviar el código en este momento. Intenta de nuevo más tarde.',
             'info',
             { options: mainMenuOptions(isGuest) }
           );
@@ -1756,7 +1756,7 @@ export class ChatService {
 
       return reply(
         sessionKey,
-        `Fecha: ${formatFechaLegible(fecha)}\n\n¿A qué hora quieres la cita? Por favor, selecciona un botón de abajo:`,
+        `Fecha: ${formatFechaLegible(fecha)}\n\n¿A qué hora quieres tu cita? Elige un horario:`,
         'create_reservation',
         {
           step: 'hora',
@@ -1774,7 +1774,7 @@ export class ChatService {
       if (!hora || !pending.id_barbero || !pending.fecha) {
         return reply(
           sessionKey,
-          'Por favor, dime primero la hora y luego los minutos (ejemplo: 10:30, 3:00 p.m. o selecciona un botón de abajo).',
+          'Por favor, dime la hora (ejemplo: 10:30 o 3:00 pm) o elige un horario de la lista.',
           'create_reservation',
           {
             step: 'hora',
@@ -1884,7 +1884,7 @@ export class ChatService {
       } catch (err: any) {
         return reply(
           sessionKey,
-          err?.message || 'No pude crear la reserva. Intenta con otra hora o fecha.',
+          'No pude confirmar tu reserva en este momento. Intenta con otra hora o fecha.',
           'create_reservation',
           {
             step: 'confirmar',
@@ -1973,7 +1973,7 @@ export class ChatService {
           'info', { step: 'codigo_recuperacion', options: backCancelOpt });
       } catch (err: any) {
         return reply(sessionKey,
-          err?.message || 'No encontramos una cuenta con ese correo. Verifica e intenta de nuevo:',
+          'No encontramos una cuenta con ese correo. Verifica e intenta de nuevo:',
           'info', { step: 'email_recuperacion', options: cancelOpt });
       }
     }
