@@ -24,6 +24,8 @@ export async function subirArchivoCloudinary(file: Express.Multer.File, carpeta:
   const resultado = await cloudinary.uploader.upload(dataUri, {
     folder: `blendlap/${carpeta}`,
     resource_type: 'image',
+    format: 'webp',
+    quality: 'auto:good',
     overwrite: false,
   });
 
@@ -37,6 +39,22 @@ export async function subirDataUrlCloudinary(valor: string | null | undefined, c
   const resultado = await cloudinary.uploader.upload(valor, {
     folder: `blendlap/${carpeta}`,
     resource_type: 'image',
+    format: 'webp',
+    quality: 'auto:good',
+    overwrite: false,
+  });
+
+  return resultado.secure_url;
+}
+
+export async function subirVideoCloudinary(file: Express.Multer.File, carpeta: string): Promise<string> {
+  asegurarConfig();
+
+  const dataUri = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  const resultado = await cloudinary.uploader.upload(dataUri, {
+    folder: `blendlap/${carpeta}`,
+    resource_type: 'video',
+    quality: 'auto:good',
     overwrite: false,
   });
 
