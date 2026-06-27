@@ -7,7 +7,7 @@ export class UsuarioModel {
   // Buscar cliente por nombre, teléfono o correo
   static async buscarClientes(termino: string): Promise<RowDataPacket[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT u.id_usuario, u.nombre, u.apellido, u.correo_electronico, u.telefono, u.observaciones, u.estado,
+      `SELECT u.id_usuario, u.nombre, u.apellido, u.correo_electronico, u.telefono, u.observaciones, u.estado, u.foto,
         (SELECT s.nombre_servicio
          FROM reserva r
          JOIN reserva_servicio rs ON r.id_reserva = rs.id_reserva
@@ -31,7 +31,7 @@ export class UsuarioModel {
   // Obtener todos los clientes
   static async findAllClientes(): Promise<RowDataPacket[]> {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT u.id_usuario, u.nombre, u.apellido, u.correo_electronico, u.telefono, u.observaciones, u.estado, u.fecha_creacion,
+      `SELECT u.id_usuario, u.nombre, u.apellido, u.correo_electronico, u.telefono, u.observaciones, u.estado, u.fecha_creacion, u.foto,
         (SELECT s.nombre_servicio
          FROM reserva r
          JOIN reserva_servicio rs ON r.id_reserva = rs.id_reserva

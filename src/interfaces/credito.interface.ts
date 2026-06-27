@@ -1,6 +1,6 @@
 export type PlazoCredito  = '1_semana' | '1_quincena' | '2_quincenas' | '1_mes';
 export type EstadoCredito = 'pendiente' | 'activo' | 'pagado' | 'vencido' | 'rechazado';
-export type MetodoPago    = 'efectivo' | 'nequi' | 'otro';
+export type MetodoPago    = 'efectivo' | 'nequi' | 'transferencia' | 'otro';
 
 export interface ICredito {
   id_credito:        number;

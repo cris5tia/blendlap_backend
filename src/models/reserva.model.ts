@@ -8,6 +8,7 @@ export class ReservaModel {
     static async findAll(filtros?: { fecha?: string; id_barbero?: string; estado?: string }): Promise<IReserva[]> {
         let query = `SELECT r.*,
       CONCAT(c.nombre, ' ', c.apellido) AS nombre_cliente,
+      c.foto AS foto_cliente,
       CONCAT(b.nombre, ' ', b.apellido) AS nombre_barbero,
       GROUP_CONCAT(DISTINCT s.nombre_servicio) AS nombre_servicio,
       COALESCE(SUM(rs.precio_cobrado), 0) AS precio_total
@@ -38,6 +39,7 @@ export class ReservaModel {
         const [rows] = await pool.execute<RowDataPacket[]>(
             `SELECT r.*,
         CONCAT(c.nombre, ' ', c.apellido) AS nombre_cliente,
+        c.foto AS foto_cliente,
         CONCAT(b.nombre, ' ', b.apellido) AS nombre_barbero,
         GROUP_CONCAT(rs.id_servicio) AS servicios
        FROM reserva r
@@ -89,6 +91,7 @@ export class ReservaModel {
         const [rows] = await pool.execute<RowDataPacket[]>(
             `SELECT r.*,
         CONCAT(c.nombre, ' ', c.apellido) AS nombre_cliente,
+        c.foto AS foto_cliente,
         GROUP_CONCAT(rs.id_servicio) AS servicios
        FROM reserva r
        JOIN usuario_rol c ON r.id_cliente = c.id_usuario
@@ -255,6 +258,7 @@ export class ReservaModel {
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT r.*,
       CONCAT(c.nombre, ' ', c.apellido) AS nombre_cliente,
+      c.foto AS foto_cliente,
       GROUP_CONCAT(DISTINCT s.nombre_servicio) AS nombre_servicio,
       COALESCE(SUM(s.duracion), 30) AS duracion_total,
       COALESCE(SUM(rs.precio_cobrado), 0) AS precio_total
@@ -275,6 +279,7 @@ static async findProximasBarbero(id_barbero: number, desde: string): Promise<any
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT r.*,
       CONCAT(c.nombre, ' ', c.apellido) AS nombre_cliente,
+      c.foto AS foto_cliente,
       GROUP_CONCAT(DISTINCT s.nombre_servicio) AS nombre_servicio,
       COALESCE(SUM(s.duracion), 30) AS duracion_total,
       COALESCE(SUM(rs.precio_cobrado), 0) AS precio_total
