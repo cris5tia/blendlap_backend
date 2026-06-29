@@ -69,7 +69,6 @@ export class ReporteService {
       `attachment; filename=reporte_${filtro.fechaInicio}_al_${filtro.fechaFin}.pdf`);
     doc.pipe(res);
 
-    // â”€â”€ Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const PW   = doc.page.width;
     const PH   = doc.page.height;
     const ML   = 36;
@@ -114,24 +113,22 @@ export class ReporteService {
 
     let cy = 0;
 
-    // â”€â”€ Header de pÃ¡gina (todas excepto portada) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const drawPageHeader = () => {
       doc.rect(0, 0, PW, 30).fill(CP);
       doc.rect(0, 28, PW, 2).fill(CG);
       doc.fillColor(CW2).fontSize(8.5).font('Helvetica-Bold')
-        .text('BLENDLAP BARBERÃA', ML, 10, { width: CW * 0.5, lineBreak: false });
-      doc.fillColor('rgba(255,255,255,0.5)').font('Helvetica')
-        .text(`PerÃ­odo: ${filtro.fechaInicio} â†’ ${filtro.fechaFin}`, ML, 10, { width: CW, align: 'right', lineBreak: false });
+        .text('BLENDLAP BARBERIA', ML, 10, { width: CW * 0.5, lineBreak: false });
+      doc.fillColor('rgba(255,255,255,0.55)').font('Helvetica')
+        .text(`Periodo: ${filtro.fechaInicio} al ${filtro.fechaFin}`, ML, 10, { width: CW, align: 'right', lineBreak: false });
     };
 
-    // â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const drawFooter = () => {
       doc.rect(0, PH - 26, PW, 26).fill(CP);
       doc.rect(0, PH - 26, PW, 2).fill(CG);
       doc.fillColor('rgba(255,255,255,0.45)').fontSize(7).font('Helvetica')
         .text(`Generado el ${fechaGen}`, ML, PH - 16, { width: CW * 0.55, align: 'left', lineBreak: false });
       doc.fillColor('rgba(255,255,255,0.45)')
-        .text('BLENDLAP BARBERÃA â€” Reporte AnalÃ­tico', ML, PH - 16, { width: CW, align: 'right', lineBreak: false });
+        .text('BLENDLAP BARBERIA - Reporte Analitico', ML, PH - 16, { width: CW, align: 'right', lineBreak: false });
     };
 
     const newPage = () => {
@@ -143,22 +140,21 @@ export class ReporteService {
 
     const checkPage = (needed = 60) => { if (cy + needed > PH - 40) newPage(); };
 
-    // â”€â”€ Cabecera de secciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const sectionHead = (title: string, subtitle = '') => {
       checkPage(90);
-      const h = subtitle ? 32 : 26;
-      doc.rect(ML, cy, CW, h).fill(CP);
-      doc.rect(ML, cy, 5, h).fill(CG);
-      doc.fillColor(CW2).fontSize(10).font('Helvetica-Bold')
-        .text(title.toUpperCase(), ML + 14, cy + (subtitle ? 7 : 8), { width: CW - 20, lineBreak: false });
+      const h = subtitle ? 34 : 28;
+      doc.rect(ML, cy, CW, h).fill(CW2);
+      doc.rect(ML, cy, 4, h).fill(CG);
+      doc.moveTo(ML, cy + h).lineTo(ML + CW, cy + h).strokeColor(CB).lineWidth(0.5).stroke();
+      doc.fillColor(CP).fontSize(10).font('Helvetica-Bold')
+        .text(title.toUpperCase(), ML + 14, cy + (subtitle ? 7 : 9), { width: CW - 20, lineBreak: false });
       if (subtitle) {
-        doc.fillColor('rgba(255,255,255,0.5)').fontSize(7).font('Helvetica')
-          .text(subtitle, ML + 14, cy + 20, { width: CW - 20, lineBreak: false });
+        doc.fillColor(CGR).fontSize(7).font('Helvetica')
+          .text(subtitle, ML + 14, cy + 21, { width: CW - 20, lineBreak: false });
       }
-      cy += h + 6;
+      cy += h + 8;
     };
 
-    // â”€â”€ Fila clave-valor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const dataRow = (label: string, value: string, opts: { bold?: boolean; idx?: number; valueColor?: string; indent?: boolean } = {}) => {
       checkPage(ROW + 4);
       const bg = (opts.idx ?? 0) % 2 === 0 ? CW2 : CLG;
@@ -171,34 +167,33 @@ export class ReporteService {
       cy += ROW;
     };
 
-    // â”€â”€ Cabecera de tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const tableHead = (cols: { label: string; x: number; w: number; align?: 'left' | 'right' | 'center' }[]) => {
-      doc.rect(ML, cy, CW, 22).fill(CP);
+      doc.rect(ML, cy, CW, 22).fill(CLG2);
+      doc.moveTo(ML, cy).lineTo(ML + CW, cy).strokeColor(CG).lineWidth(1.5).stroke();
+      doc.moveTo(ML, cy + 22).lineTo(ML + CW, cy + 22).strokeColor(CB).lineWidth(0.5).stroke();
       cols.forEach(c => {
-        doc.fillColor(CG).fontSize(7.5).font('Helvetica-Bold')
+        doc.fillColor(CP).fontSize(7.5).font('Helvetica-Bold')
           .text(c.label.toUpperCase(), c.x, cy + 7, { width: c.w, align: c.align ?? 'left', lineBreak: false });
       });
       cy += 22;
     };
 
-    // â”€â”€ Barra de progreso â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const progressBar = (x: number, y: number, w: number, ratio: number, color: string) => {
       doc.rect(x, y, w, 5).fill('#e5e7eb');
       doc.rect(x, y, Math.max(w * Math.min(ratio, 1), 0), 5).fill(color);
     };
 
-    // â”€â”€ Fila de total oscura â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const darkTotalRow = (cols: { x: number; w: number; v: string; align?: 'left' | 'right'; color?: string }[]) => {
       checkPage(ROW + 4);
-      doc.rect(ML, cy, CW, ROW + 2).fill(CP);
+      doc.rect(ML, cy, CW, ROW + 2).fill('#fff8e1');
+      doc.moveTo(ML, cy).lineTo(ML + CW, cy).strokeColor(CG).lineWidth(1.5).stroke();
       cols.forEach(c => {
-        doc.fillColor(c.color ?? CW2).fontSize(9).font('Helvetica-Bold')
+        doc.fillColor(c.color ?? CP).fontSize(9).font('Helvetica-Bold')
           .text(c.v, c.x, cy + 7, { width: c.w, align: c.align ?? 'right', lineBreak: false });
       });
       cy += ROW + 14;
     };
 
-    // â”€â”€ Fila de total clara â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const lightTotalRow = (cols: { x: number; w: number; v: string; align?: 'left' | 'right'; color?: string }[]) => {
       checkPage(ROW + 4);
       doc.rect(ML, cy, CW, ROW + 2).fill(CLG2);
@@ -210,81 +205,79 @@ export class ReporteService {
       cy += ROW + 14;
     };
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // PORTADA
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    doc.rect(0, 0, PW, PH).fill(CP);
-    doc.rect(0, PH - 60, PW, 60).fill(CG);
-    doc.rect(0, 200, PW, 4).fill(CG);
-    doc.rect(0, 208, PW, 1).fill('rgba(251,196,71,0.3)');
+    doc.rect(0, 0, PW, PH).fill(CW2);
 
-    doc.fillColor(CG).fontSize(38).font('Helvetica-Bold')
-      .text('BLENDLAP', 0, 90, { width: PW, align: 'center' });
-    doc.fillColor('rgba(251,196,71,0.55)').fontSize(11).font('Helvetica')
-      .text('B  A  R  B  E  R  Ã  A', 0, 138, { width: PW, align: 'center' });
+    doc.rect(0, 0, PW, 90).fill(CP);
+    doc.rect(0, 88, PW, 3).fill(CG);
 
-    doc.fillColor(CW2).fontSize(20).font('Helvetica-Bold')
-      .text('REPORTE ANALÃTICO', 0, 222, { width: PW, align: 'center' });
-    doc.fillColor('rgba(255,255,255,0.5)').fontSize(10).font('Helvetica')
-      .text('Informe completo de desempeÃ±o y finanzas', 0, 250, { width: PW, align: 'center' });
+    doc.fillColor(CG).fontSize(36).font('Helvetica-Bold')
+      .text('BLENDLAP', 0, 22, { width: PW, align: 'center' });
+    doc.fillColor('rgba(255,255,255,0.7)').fontSize(11).font('Helvetica')
+      .text('B  A  R  B  E  R  I  A', 0, 64, { width: PW, align: 'center' });
 
-    doc.roundedRect(ML + 60, 288, CW - 120, 74, 8).fill('rgba(255,255,255,0.06)');
-    doc.moveTo(ML + 60, 288).lineTo(ML + 60 + CW - 120, 288).strokeColor(CG).lineWidth(1).stroke();
-    doc.fillColor('rgba(251,196,71,0.7)').fontSize(8).font('Helvetica')
-      .text('PERÃODO ANALIZADO', 0, 302, { width: PW, align: 'center' });
-    doc.fillColor(CW2).fontSize(16).font('Helvetica-Bold')
-      .text(`${filtro.fechaInicio}  â†’  ${filtro.fechaFin}`, 0, 320, { width: PW, align: 'center' });
-    doc.fillColor('rgba(255,255,255,0.4)').fontSize(9).font('Helvetica')
-      .text(`Generado el ${fechaGen}`, 0, 346, { width: PW, align: 'center' });
+    doc.fillColor(CP).fontSize(22).font('Helvetica-Bold')
+      .text('REPORTE ANALITICO', 0, 118, { width: PW, align: 'center' });
+    doc.moveTo(ML + 80, 148).lineTo(PW - ML - 80, 148).strokeColor(CG).lineWidth(2).stroke();
+    doc.fillColor(CGR).fontSize(10).font('Helvetica')
+      .text('Informe completo de desempeno y finanzas', 0, 158, { width: PW, align: 'center' });
 
-    // KPI highlights portada
+    doc.roundedRect(ML + 50, 188, CW - 100, 68, 6).strokeColor(CB).lineWidth(1).stroke();
+    doc.rect(ML + 50, 188, CW - 100, 4).fill(CG);
+    doc.fillColor(CGR).fontSize(8).font('Helvetica')
+      .text('PERIODO ANALIZADO', 0, 204, { width: PW, align: 'center' });
+    doc.fillColor(CP).fontSize(17).font('Helvetica-Bold')
+      .text(`${filtro.fechaInicio}  ->  ${filtro.fechaFin}`, 0, 222, { width: PW, align: 'center' });
+    doc.fillColor(CGR).fontSize(9).font('Helvetica')
+      .text(`Generado el ${fechaGen}`, 0, 246, { width: PW, align: 'center' });
+
     const pCards = [
-      { l: 'Ingresos totales', v: fmt(kpis.ingresos_total),          c: CBLU  },
-      { l: 'Ganancia neta',    v: fmt(kpis.ganancia_neta),            c: CGRN  },
-      { l: 'Reservas compl.',  v: String(kpis.reservas_completadas),  c: '#8b5cf6' },
-      { l: 'Ventas',           v: String(kpis.cantidad_ventas),       c: '#f59e0b' },
+      { l: 'Ingresos totales', v: fmt(kpis.ingresos_total),          c: CBLU        },
+      { l: 'Ganancia neta',    v: fmt(kpis.ganancia_neta),            c: CGRN        },
+      { l: 'Reservas compl.',  v: String(kpis.reservas_completadas),  c: '#8b5cf6'   },
+      { l: 'Ventas',           v: String(kpis.cantidad_ventas),       c: '#f59e0b'   },
     ];
     const PC_W = (CW - 12) / 2;
     const PC_H = 60;
     pCards.forEach((c, idx) => {
       const col = idx % 2; const row = Math.floor(idx / 2);
       const px = ML + col * (PC_W + 12);
-      const py = 384 + row * (PC_H + 10);
-      doc.roundedRect(px, py, PC_W, PC_H, 6).fill('rgba(255,255,255,0.07)');
+      const py = 280 + row * (PC_H + 10);
+      doc.roundedRect(px, py, PC_W, PC_H, 6).fill(CW2);
+      doc.roundedRect(px, py, PC_W, PC_H, 6).strokeColor(CB).lineWidth(1).stroke();
       doc.rect(px, py, 4, PC_H).fill(c.c);
-      doc.fillColor('rgba(255,255,255,0.5)').fontSize(7.5).font('Helvetica')
+      doc.fillColor(CGR).fontSize(7.5).font('Helvetica')
         .text(c.l.toUpperCase(), px + 12, py + 10, { width: PC_W - 16, lineBreak: false });
-      doc.fillColor(CW2).fontSize(16).font('Helvetica-Bold')
+      doc.fillColor(CP).fontSize(16).font('Helvetica-Bold')
         .text(c.v, px + 10, py + 27, { width: PC_W - 14, lineBreak: false });
     });
 
-    // Ãndice de contenido en portada
     const idx_sections = [
       'Resumen Ejecutivo', 'Barberos y Comisiones', 'Top Servicios',
-      'Reservas del PerÃ­odo', 'Ventas por DÃ­a', 'MÃ©todos de Pago',
-      'Top Productos', 'Top Clientes', 'Gastos por CategorÃ­a', 'Estado de CrÃ©ditos',
+      'Reservas del Periodo', 'Ventas por Dia', 'Metodos de Pago',
+      'Top Productos', 'Top Clientes', 'Gastos por Categoria', 'Estado de Creditos',
     ];
-    const idxStartY = 524;
-    doc.fillColor('rgba(251,196,71,0.55)').fontSize(7).font('Helvetica')
-      .text('C O N T E N I D O', 0, idxStartY, { width: PW, align: 'center' });
-    doc.moveTo(ML + 60, idxStartY + 11).lineTo(PW - ML - 60, idxStartY + 11)
-      .strokeColor('rgba(251,196,71,0.2)').lineWidth(0.5).stroke();
+    const idxStartY = 424;
+    doc.moveTo(ML + 40, idxStartY).lineTo(PW - ML - 40, idxStartY).strokeColor(CB).lineWidth(0.5).stroke();
+    doc.fillColor(CG).fontSize(7.5).font('Helvetica-Bold')
+      .text('C O N T E N I D O', 0, idxStartY + 8, { width: PW, align: 'center' });
+    doc.moveTo(ML + 40, idxStartY + 19).lineTo(PW - ML - 40, idxStartY + 19).strokeColor(CB).lineWidth(0.5).stroke();
     idx_sections.forEach((s, i) => {
       const col = i % 2; const rowI = Math.floor(i / 2);
       const ix = ML + 20 + col * (CW / 2);
-      const iy = idxStartY + 18 + rowI * 15;
-      doc.fillColor('rgba(251,196,71,0.4)').fontSize(7.5).font('Helvetica')
+      const iy = idxStartY + 26 + rowI * 16;
+      doc.fillColor(CG).fontSize(8).font('Helvetica-Bold')
         .text(`${i + 1}.`, ix, iy, { width: 14, lineBreak: false });
-      doc.fillColor('rgba(255,255,255,0.5)')
+      doc.fillColor(CP).font('Helvetica')
         .text(s, ix + 16, iy, { width: CW / 2 - 36, lineBreak: false });
     });
 
-    doc.fillColor(CP).fontSize(9).font('Helvetica-Bold')
-      .text('Sistema de GestiÃ³n Â· Confidencial', 0, PH - 38, { width: PW, align: 'center', lineBreak: false });
+    doc.rect(0, PH - 30, PW, 30).fill(CP);
+    doc.rect(0, PH - 30, PW, 2).fill(CG);
+    doc.fillColor('rgba(255,255,255,0.5)').fontSize(8).font('Helvetica')
+      .text('Sistema de Gestion  -  Confidencial', 0, PH - 16, { width: PW, align: 'center', lineBreak: false });
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // RESUMEN EJECUTIVO
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     newPage();
 
     const CARD_W = (CW - 16) / 3;
@@ -293,8 +286,8 @@ export class ReporteService {
 
     const kCards = [
       { l: 'Ingresos totales',     v: fmt(kpis.ingresos_total),          sub: `Margen neto: ${pct(kpis.ganancia_neta, kpis.ingresos_total)}`, bg: '#dbeafe', ac: CBLU       },
-      { l: 'Ganancia neta',        v: fmt(kpis.ganancia_neta),            sub: 'Ingresos âˆ’ Gastos',                                           bg: '#d1fae5', ac: CGRN       },
-      { l: 'Total gastos',         v: fmt(kpis.total_gastos),             sub: 'Egresos del perÃ­odo',                                         bg: '#fee2e2', ac: CRED       },
+      { l: 'Ganancia neta',        v: fmt(kpis.ganancia_neta),            sub: 'Ingresos - Gastos',                                           bg: '#d1fae5', ac: CGRN       },
+      { l: 'Total gastos',         v: fmt(kpis.total_gastos),             sub: 'Egresos del periodo',                                         bg: '#fee2e2', ac: CRED       },
       { l: 'Reservas completadas', v: String(kpis.reservas_completadas),  sub: `Tasa: ${pct(kpis.reservas_completadas, kpis.reservas_total)}`, bg: '#ede9fe', ac: '#6d28d9' },
       { l: 'Comisiones staff',     v: fmt(kpis.total_comisiones_barbero), sub: 'Pagos a barberos',                                            bg: '#fef9c3', ac: '#92400e' },
       { l: 'Clientes nuevos',      v: String(kpis.clientes_nuevos),       sub: `${kpis.cantidad_ventas} ventas registradas`,                  bg: '#fce7f3', ac: '#9d174d' },
@@ -315,16 +308,16 @@ export class ReporteService {
     });
     cy += 2 * (CARD_H + CARD_G) + 16;
 
-    sectionHead('Resumen Financiero', `PerÃ­odo: ${filtro.fechaInicio} al ${filtro.fechaFin}`);
+    sectionHead('Resumen Financiero', `Periodo: ${filtro.fechaInicio} al ${filtro.fechaFin}`);
     [
       { l: 'Ingresos totales',        v: fmt(kpis.ingresos_total),           bold: true,  vc: CBLU               },
-      { l: 'Â· Por servicios',          v: fmt(kpis.ingresos_servicios),       bold: false, indent: true           },
-      { l: 'Â· Por productos',          v: fmt(kpis.ingresos_productos),       bold: false, indent: true           },
+      { l: '  Por servicios',          v: fmt(kpis.ingresos_servicios),       bold: false, indent: true           },
+      { l: '  Por productos',          v: fmt(kpis.ingresos_productos),       bold: false, indent: true           },
       { l: 'Total gastos (egresos)',   v: fmt(kpis.total_gastos),             bold: true,  vc: CRED               },
       { l: 'Comisiones barberos',      v: fmt(kpis.total_comisiones_barbero), bold: false, vc: '#d97706'          },
       { l: 'Ganancia neta',            v: fmt(kpis.ganancia_neta),            bold: true,  vc: CGRN               },
       { l: 'Margen neto',              v: pct(kpis.ganancia_neta, kpis.ingresos_total), bold: false              },
-      { l: 'CrÃ©ditos pendientes',      v: fmt(kpis.monto_creditos_pendiente), bold: false, vc: '#d97706'          },
+      { l: 'Creditos pendientes',      v: fmt(kpis.monto_creditos_pendiente), bold: false, vc: '#d97706'          },
     ].forEach((r, i) => dataRow(r.l, r.v, { bold: r.bold, idx: i, valueColor: (r as any).vc, indent: (r as any).indent }));
     cy += 14;
 
@@ -334,18 +327,16 @@ export class ReporteService {
       { l: 'Completadas',          v: String(kpis.reservas_completadas), bold: false, vc: CGRN        },
       { l: 'Pendientes',           v: String(kpis.reservas_pendientes),  bold: false, vc: '#d97706'   },
       { l: 'Canceladas',           v: String(kpis.reservas_canceladas),  bold: false, vc: CRED        },
-      { l: 'Tasa de completaciÃ³n', v: pct(kpis.reservas_completadas, kpis.reservas_total), bold: false },
+      { l: 'Tasa de completacion', v: pct(kpis.reservas_completadas, kpis.reservas_total), bold: false },
       { l: 'Total ventas',         v: String(kpis.cantidad_ventas),      bold: false                  },
       { l: 'Clientes nuevos',      v: String(kpis.clientes_nuevos),      bold: false                  },
     ].forEach((r, i) => dataRow(r.l, r.v, { bold: r.bold, idx: i, valueColor: (r as any).vc }));
     cy += 14;
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // BARBEROS Y COMISIONES
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     if (barberos.length) {
       checkPage(80);
-      sectionHead('Barberos y Comisiones', 'Ranking por ingresos generados Â· mayor a menor');
+      sectionHead('Barberos y Comisiones', 'Ranking por ingresos generados - mayor a menor');
 
       const BC = [
         { label: '#',           x: ML + 4,   w: 14,  align: 'center' as const },
@@ -354,7 +345,7 @@ export class ReporteService {
         { label: 'Reservas',    x: ML + 190, w: 52,  align: 'right'  as const },
         { label: 'Generado',    x: ML + 246, w: 90,  align: 'right'  as const },
         { label: 'Staff recibe',x: ML + 340, w: 90,  align: 'right'  as const },
-        { label: 'BarberÃ­a',    x: ML + 434, w: 89,  align: 'right'  as const },
+        { label: 'Barberia',    x: ML + 434, w: 89,  align: 'right'  as const },
       ];
       tableHead(BC);
 
@@ -386,17 +377,15 @@ export class ReporteService {
       darkTotalRow([
         { x: BC[1].x, w: 100, v: 'TOTALES', align: 'left' },
         { x: BC[4].x, w: BC[4].w, v: fmt(tGen) },
-        { x: BC[5].x, w: BC[5].w, v: fmt(tCom), color: CG   },
-        { x: BC[6].x, w: BC[6].w, v: fmt(tBar), color: CGRN },
+        { x: BC[5].x, w: BC[5].w, v: fmt(tCom), color: '#d97706' },
+        { x: BC[6].x, w: BC[6].w, v: fmt(tBar), color: CGRN      },
       ]);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // TOP SERVICIOS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     if (topS.length) {
       checkPage(80);
-      sectionHead('Top Servicios', 'Servicios mÃ¡s solicitados del perÃ­odo');
+      sectionHead('Top Servicios', 'Servicios mas solicitados del periodo');
 
       const SC = [
         { label: '#',           x: ML + 5,   w: 18,  align: 'center' as const },
@@ -416,7 +405,7 @@ export class ReporteService {
         doc.fillColor(CP).font('Helvetica')
           .text(s.nombre_servicio, SC[1].x, cy + 6, { width: SC[1].w, lineBreak: false });
         doc.fillColor(CGR).font('Helvetica-Bold')
-          .text(`${s.veces_solicitado}Ã—`, SC[2].x, cy + 6, { width: SC[2].w, align: 'right', lineBreak: false });
+          .text(`${s.veces_solicitado}x`, SC[2].x, cy + 6, { width: SC[2].w, align: 'right', lineBreak: false });
         doc.fillColor(CBLU)
           .text(pct(s.veces_solicitado, totalVeces), SC[3].x, cy + 6, { width: SC[3].w, align: 'right', lineBreak: false });
         doc.fillColor(CP)
@@ -425,25 +414,23 @@ export class ReporteService {
       });
       lightTotalRow([
         { x: SC[1].x, w: 120, v: `${topS.length} servicios`, align: 'left', color: CGR },
-        { x: SC[2].x, w: SC[2].w, v: `${totalVeces}Ã—`,       align: 'right', color: CGR },
+        { x: SC[2].x, w: SC[2].w, v: `${totalVeces}x`,       align: 'right', color: CGR },
         { x: SC[4].x, w: SC[4].w, v: fmt(topS.reduce((a: number, s: any) => a + Number(s.total_generado), 0)) },
       ]);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // VENTAS POR DÃA
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // VENTAS POR DIA
     if (ventasDia.length) {
       checkPage(80);
       const totalTx   = ventasDia.reduce((a: number, v: any) => a + Number(v.cantidad), 0);
       const totalVtas = ventasDia.reduce((a: number, v: any) => a + Number(v.total), 0);
       const maxVta    = Math.max(...ventasDia.map((v: any) => Number(v.total)), 1);
-      sectionHead('Ventas por DÃ­a', `${ventasDia.length} dÃ­as con actividad en el perÃ­odo`);
+      sectionHead('Ventas por Dia', `${ventasDia.length} dias con actividad en el periodo`);
 
       const VC = [
         { label: 'Fecha',         x: ML + 5,   w: 100, align: 'left'  as const },
         { label: 'Transacciones', x: ML + 109, w: 90,  align: 'right' as const },
-        { label: 'DistribuciÃ³n',  x: ML + 203, w: 168, align: 'left'  as const },
+        { label: 'Distribucion',  x: ML + 203, w: 168, align: 'left'  as const },
         { label: 'Total COP',     x: ML + 375, w: 148, align: 'right' as const },
       ];
       tableHead(VC);
@@ -464,25 +451,23 @@ export class ReporteService {
         checkPage(ROW);
         doc.rect(ML, cy, CW, ROW).fill(CLG);
         doc.fillColor(CGR).fontSize(8).font('Helvetica')
-          .text(`â€¦ y ${ventasDia.length - 35} dÃ­as mÃ¡s`, ML + 10, cy + 6, { lineBreak: false });
+          .text(`... y ${ventasDia.length - 35} dias mas`, ML + 10, cy + 6, { lineBreak: false });
         cy += ROW;
       }
       lightTotalRow([
-        { x: VC[0].x, w: 120, v: `${ventasDia.length} dÃ­as`, align: 'left', color: CGR },
+        { x: VC[0].x, w: 120, v: `${ventasDia.length} dias`, align: 'left', color: CGR },
         { x: VC[1].x, w: VC[1].w, v: String(totalTx), align: 'right', color: CGR },
         { x: VC[3].x, w: VC[3].w, v: fmt(totalVtas) },
       ]);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // MÃ‰TODOS DE PAGO
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // METODOS DE PAGO
     if (metodos.length) {
       checkPage(80);
-      sectionHead('MÃ©todos de Pago');
+      sectionHead('Metodos de Pago');
 
       const MC = [
-        { label: 'MÃ©todo',          x: ML + 5,   w: 180, align: 'left'  as const },
+        { label: 'Metodo',          x: ML + 5,   w: 180, align: 'left'  as const },
         { label: 'Transacciones',   x: ML + 189, w: 100, align: 'right' as const },
         { label: '% Transacciones', x: ML + 293, w: 90,  align: 'right' as const },
         { label: 'Total recaudado', x: ML + 387, w: 136, align: 'right' as const },
@@ -511,9 +496,7 @@ export class ReporteService {
       ]);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // TOP PRODUCTOS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     if (topP.length) {
       checkPage(80);
       sectionHead('Top Productos Vendidos');
@@ -546,12 +529,10 @@ export class ReporteService {
       ]);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // TOP CLIENTES
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     if (topC.length) {
       checkPage(80);
-      sectionHead('Top Clientes', 'Clientes con mayor gasto acumulado en el perÃ­odo');
+      sectionHead('Top Clientes', 'Clientes con mayor gasto acumulado en el periodo');
 
       const CC = [
         { label: '#',             x: ML + 5,   w: 18,  align: 'center' as const },
@@ -580,15 +561,13 @@ export class ReporteService {
       cy += 10;
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // GASTOS POR CATEGORÃA
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // GASTOS POR CATEGORIA
     if (gastos.length) {
       checkPage(80);
-      sectionHead('Gastos por CategorÃ­a');
+      sectionHead('Gastos por Categoria');
 
       const GC = [
-        { label: 'CategorÃ­a',   x: ML + 5,   w: 240, align: 'left'  as const },
+        { label: 'Categoria',   x: ML + 5,   w: 240, align: 'left'  as const },
         { label: 'Registros',   x: ML + 249, w: 70,  align: 'right' as const },
         { label: '% del total', x: ML + 323, w: 70,  align: 'right' as const },
         { label: 'Total',       x: ML + 397, w: 126, align: 'right' as const },
@@ -618,12 +597,10 @@ export class ReporteService {
       cy += ROW + 14;
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // ESTADO DE CRÃ‰DITOS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ESTADO DE CREDITOS
     if (credEst.length) {
       checkPage(80);
-      sectionHead('Estado de CrÃ©ditos');
+      sectionHead('Estado de Creditos');
 
       const XC = [
         { label: 'Estado',          x: ML + 5,   w: 150, align: 'left'  as const },
@@ -654,7 +631,6 @@ export class ReporteService {
       cy += 14;
     }
 
-    // â”€â”€ PaginaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     drawFooter();
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
@@ -689,20 +665,20 @@ export class ReporteService {
     }]);
     XLSX.utils.book_append_sheet(wb, kpiSheet, 'KPIs');
 
-    // Hoja Ventas por dÃ­a
+    // Hoja Ventas por Dia
     const ventasSheet = XLSX.utils.json_to_sheet(
       (data.ventas_por_dia as any[]).map(v => ({
         'Dia': String(v.dia), Ventas: v.cantidad, 'Total COP': v.total
       }))
     );
-    XLSX.utils.book_append_sheet(wb, ventasSheet, 'Ventas por DÃ­a');
+    XLSX.utils.book_append_sheet(wb, ventasSheet, 'Ventas por Dia');
 
     // Hoja Barberos
     const barberosSheet = XLSX.utils.json_to_sheet(
       (data.barberos as any[]).map(b => ({
-        Barbero: b.barbero, 'ComisiÃ³n %': b.comision,
+        Barbero: b.barbero, 'Comision %': b.comision,
         Reservas: b.total_reservas, 'Total Servicios': b.total_servicios,
-        'ComisiÃ³n Barbero': b.comision_barbero, 'Aporte BarberÃ­a': b.comision_barberia
+        'Comision Barbero': b.comision_barbero, 'Aporte Barberia': b.comision_barberia
       }))
     );
     XLSX.utils.book_append_sheet(wb, barberosSheet, 'Barberos');
@@ -747,14 +723,14 @@ export class ReporteService {
       XLSX.utils.book_append_sheet(wb, gastosSheet, 'Gastos');
     }
 
-    // Hoja MÃ©todos de pago
+    // Hoja Metodos de pago
     if ((data.metodos_pago as any[]).length) {
       const mpSheet = XLSX.utils.json_to_sheet(
         (data.metodos_pago as any[]).map(m => ({
-          'MÃ©todo': m.metodo_pago, Transacciones: m.cantidad, 'Total': m.total
+          'Metodo': m.metodo_pago, Transacciones: m.cantidad, 'Total': m.total
         }))
       );
-      XLSX.utils.book_append_sheet(wb, mpSheet, 'MÃ©todos de Pago');
+      XLSX.utils.book_append_sheet(wb, mpSheet, 'Metodos de Pago');
     }
 
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
