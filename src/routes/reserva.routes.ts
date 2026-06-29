@@ -10,6 +10,7 @@ router.get('/disponibilidad', ReservaController.getDisponibilidad);
 // Rutas barbero — ANTES de /:id
 router.get('/barbero/hoy', verificarToken, verificarRol('barbero'), ReservaController.getCitasHoy);
 router.get('/barbero/proximas', verificarToken, verificarRol('barbero'), ReservaController.getProximas);
+router.get('/barbero/por-fecha', verificarToken, verificarRol('barbero'), ReservaController.getByFecha);
 router.post('/barbero/registrar-presencial', verificarToken, verificarRol('barbero'), ReservaController.registrarPresencial);
 
 // Rutas cliente
