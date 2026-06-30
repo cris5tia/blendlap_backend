@@ -202,14 +202,12 @@ export class ReservaService {
       [id_barbero, fecha]
     );
 
-    // Calcular fin de cada reserva y encontrar el fin de la cola
-    let colaFin = inicio;
+    // Marcar minutos ocupados por reservas existentes
     const minutosReserva: Set<number> = new Set();
     for (const reserva of reservas) {
       const [hh, mm] = reserva.hora.split(':').map(Number);
       const inicioRes = hh * 60 + mm;
       const finRes    = inicioRes + Number(reserva.duracion_reserva);
-      if (finRes > colaFin) colaFin = finRes;
       for (let i = inicioRes; i < finRes; i++) minutosReserva.add(i);
     }
 
@@ -230,21 +228,35 @@ export class ReservaService {
     }
 
     // ─── Generar slots ─────────────────────────────────────
-    // Cola secuencial: los slots arrancan desde el fin de la
-    // última reserva del día. Si hay un descanso en el camino,
-    // se salta al fin del descanso + 10 min de buffer.
+    // Recorre toda la jornada desde inicio hasta fin.
+    // Salta bloques ocupados por reservas existentes o descansos.
     const BUFFER_DESCANSO = 10;
     const slots: { hora: string; disponible: boolean }[] = [];
 
-    let m = colaFin;
+    let m = inicio;
     while (m + duracion_total <= fin) {
-      // Verificar si este slot pisa algún descanso
-      let inicioConflicto = -1;
+      // Verificar si el slot pisa alguna reserva existente
+      let finConflictoReserva = -1;
       for (let i = m; i < m + duracion_total; i++) {
-        if (minutosDescanso.has(i)) { inicioConflicto = i; break; }
+        if (minutosReserva.has(i)) {
+          let finRes = i;
+          while (finRes < fin && minutosReserva.has(finRes)) finRes++;
+          finConflictoReserva = finRes;
+          break;
+        }
+      }
+      if (finConflictoReserva !== -1) {
+        m = finConflictoReserva;
+        continue;
       }
 
-      if (inicioConflicto === -1) {
+      // Verificar si el slot pisa algún descanso
+      let inicioConflictoDescanso = -1;
+      for (let i = m; i < m + duracion_total; i++) {
+        if (minutosDescanso.has(i)) { inicioConflictoDescanso = i; break; }
+      }
+
+      if (inicioConflictoDescanso === -1) {
         // Sin conflicto → slot disponible, avanzar por duracion_total
         const h   = Math.floor(m / 60).toString().padStart(2, '0');
         const min = (m % 60).toString().padStart(2, '0');
@@ -252,7 +264,7 @@ export class ReservaService {
         m += duracion_total;
       } else {
         // Descanso en el camino → saltar hasta su fin + buffer
-        let finDescanso = inicioConflicto;
+        let finDescanso = inicioConflictoDescanso;
         while (finDescanso < fin && minutosDescanso.has(finDescanso)) finDescanso++;
         m = finDescanso + BUFFER_DESCANSO;
       }
