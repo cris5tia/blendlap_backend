@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { VentaService } from '../services/venta.service';
+import { emitirAdminEvento } from '../utils/socket';
 
 export class VentaController {
 
@@ -25,6 +26,7 @@ export class VentaController {
     try {
       const id_cajero = req.usuario!.id_usuario;
       const venta = await VentaService.create(id_cajero, req.body);
+      emitirAdminEvento('venta:nueva', {});
       res.status(201).json({ ok: true, data: venta });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });

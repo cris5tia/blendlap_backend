@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { CreditoService } from '../services/credito.service';
 import { CreditoModel } from '../models/credito.model';
+import { emitirAdminEvento } from '../utils/socket';
 export class CreditoController {
 
   static async getAll(req: Request, res: Response): Promise<void> {
@@ -30,6 +31,7 @@ export class CreditoController {
     try {
       const id_admin = req.usuario!.id_usuario;
       const data = await CreditoService.crearAdmin(req.body, id_admin);
+      emitirAdminEvento('credito:actualizado', {});
       res.status(201).json({ ok: true, data });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });
@@ -41,6 +43,7 @@ export class CreditoController {
     try {
       const id_cliente = req.usuario!.id_usuario;
       const data = await CreditoService.solicitarCliente(req.body, id_cliente);
+      emitirAdminEvento('credito:actualizado', {});
       res.status(201).json({ ok: true, data });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });
@@ -50,6 +53,7 @@ export class CreditoController {
   static async aprobar(req: Request, res: Response): Promise<void> {
     try {
       const data = await CreditoService.aprobar(parseInt(req.params.id));
+      emitirAdminEvento('credito:actualizado', {});
       res.status(200).json({ ok: true, data });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });
@@ -59,6 +63,7 @@ export class CreditoController {
   static async rechazar(req: Request, res: Response): Promise<void> {
     try {
       const result = await CreditoService.rechazar(parseInt(req.params.id));
+      emitirAdminEvento('credito:actualizado', {});
       res.status(200).json({ ok: true, ...result });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });
@@ -69,6 +74,7 @@ export class CreditoController {
     try {
       const id_admin = req.usuario!.id_usuario;
       const data = await CreditoService.abonar(req.body, id_admin);
+      emitirAdminEvento('credito:actualizado', {});
       res.status(200).json({ ok: true, data });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });

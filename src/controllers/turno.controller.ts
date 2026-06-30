@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { TurnoService } from '../services/turno.service';
+import { emitirAdminEvento } from '../utils/socket';
 
 export class TurnoController {
 
@@ -50,6 +51,7 @@ export class TurnoController {
   static async create(req: Request, res: Response): Promise<void> {
     try {
       const turno = await TurnoService.create(req.body);
+      emitirAdminEvento('turno:nuevo', {});
       res.status(201).json({ ok: true, data: turno });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });
@@ -61,6 +63,7 @@ export class TurnoController {
     try {
       const id = parseInt(req.params.id);
       const turno = await TurnoService.update(id, req.body);
+      emitirAdminEvento('turno:actualizado', {});
       res.status(200).json({ ok: true, data: turno });
     } catch (error: any) {
       res.status(400).json({ ok: false, mensaje: error.message });
@@ -72,6 +75,7 @@ export class TurnoController {
     try {
       const id = parseInt(req.params.id);
       const resultado = await TurnoService.delete(id);
+      emitirAdminEvento('turno:eliminado', {});
       res.status(200).json({ ok: true, ...resultado });
     } catch (error: any) {
       res.status(404).json({ ok: false, mensaje: error.message });

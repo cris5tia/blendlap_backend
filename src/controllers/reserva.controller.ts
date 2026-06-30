@@ -4,6 +4,7 @@ import { ReservaModel } from '../models/reserva.model';
 import { pool } from '../database/connection';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import bcrypt from 'bcrypt';
+import { emitirReservaEvento } from '../utils/socket';
 const getFechaColombia = (): string => {
     return new Intl.DateTimeFormat('en-CA', {
         timeZone: 'America/Bogota',
@@ -67,6 +68,11 @@ export class ReservaController {
     static async create(req: Request, res: Response): Promise<void> {
         try {
             const reserva = await ReservaService.create(req.body);
+            emitirReservaEvento('reserva:nueva', {
+                id_reserva: reserva?.id_reserva,
+                id_barbero: reserva?.id_barbero,
+                id_cliente: reserva?.id_cliente,
+            });
             res.status(201).json({ ok: true, data: reserva });
         } catch (error: any) {
             res.status(400).json({ ok: false, mensaje: error.message });
@@ -79,6 +85,12 @@ export class ReservaController {
             const id = parseInt(req.params.id);
             const { rol, id_usuario } = req.usuario!;
             const reserva = await ReservaService.update(id, req.body, rol, id_usuario);
+            emitirReservaEvento('reserva:actualizada', {
+                id_reserva: reserva?.id_reserva,
+                id_barbero: reserva?.id_barbero,
+                id_cliente: reserva?.id_cliente,
+                estado: reserva?.estado,
+            });
             res.status(200).json({ ok: true, data: reserva });
         } catch (error: any) {
             res.status(400).json({ ok: false, mensaje: error.message });
@@ -90,6 +102,7 @@ export class ReservaController {
         try {
             const id = parseInt(req.params.id);
             const resultado = await ReservaService.delete(id);
+            emitirReservaEvento('reserva:eliminada', { id_reserva: id });
             res.status(200).json({ ok: true, ...resultado });
         } catch (error: any) {
             res.status(404).json({ ok: false, mensaje: error.message });
@@ -189,6 +202,12 @@ export class ReservaController {
                 );
 
                 await connection.commit();
+
+                emitirReservaEvento('reserva:nueva', {
+                    id_reserva,
+                    id_barbero,
+                    id_cliente,
+                });
 
                 res.status(201).json({
                     ok: true,

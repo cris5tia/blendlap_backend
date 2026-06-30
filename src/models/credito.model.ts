@@ -86,6 +86,9 @@ export class CreditoModel {
 
       const nombre_cliente   = `${cliente[0].nombre} ${cliente[0].apellido}`;
       const telefono_cliente = cliente[0].telefono || data.telefono_cliente || '';
+      if (!telefono_cliente.trim()) {
+        throw new Error('Debes registrar tu número de teléfono en tu perfil antes de solicitar un crédito');
+      }
 
       const [result] = await connection.execute<ResultSetHeader>(
         `INSERT INTO credito

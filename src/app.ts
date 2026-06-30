@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import express, { Application } from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
+import { initSocket } from './utils/socket';
 import { testConnection } from './database/connection';
 import { iniciarCronJobs } from './utils/cron';
 import logger from './utils/logger';
@@ -77,7 +79,10 @@ app.get('/api/health', (_req, res) => {
 });
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, async () => {
+const httpServer = createServer(app);
+initSocket(httpServer);
+
+httpServer.listen(PORT, async () => {
   await testConnection();
   await PagoModel.inicializarTabla();
   iniciarCronJobs();
