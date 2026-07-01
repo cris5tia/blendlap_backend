@@ -48,7 +48,7 @@ export class PagoController {
       }
 
       const resultado = await PagoService.verificarPago(transactionId);
-      res.status(resultado.ok ? 200 : 400).json(resultado);
+      res.status(200).json(resultado);
     } catch (error: any) {
       res.status(500).json({ ok: false, mensaje: error.message });
     }
