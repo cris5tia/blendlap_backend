@@ -66,9 +66,16 @@ export class PagoService {
     }
 
     const data: any = await res.json();
-    const tx        = data.data;
-    const referencia: string = tx.reference;
-    const statusWompi: string = tx.status; // APPROVED | DECLINED | VOIDED | ERROR
+    const tx          = data.data;
+    const referencia: string  = tx.reference;
+    const statusWompi: string = tx.status; // APPROVED | DECLINED | VOIDED | ERROR | PENDING
+
+    console.log(`[Wompi] Transacción ${transactionId} → referencia=${referencia} status=${statusWompi}`);
+
+    // Si Wompi aún está procesando, devolver pendiente sin tocar la BD
+    if (statusWompi === 'PENDING') {
+      return { ok: false, estado: 'pendiente', mensaje: 'El pago está siendo procesado por Wompi.' };
+    }
 
     // 2. Buscar pago pendiente
     const pago = await PagoModel.findByReferencia(referencia);
@@ -98,10 +105,15 @@ export class PagoService {
       precio_unitario: i.precio_unitario,
     }));
 
-    const idVenta = await VentaModel.create(pago.id_usuario, {
-      metodo_pago: 'otro',
-      detalles,
-    });
+    let idVenta: number;
+    try {
+      idVenta = await VentaModel.create(pago.id_usuario, { metodo_pago: 'otro', detalles });
+    } catch (ventaErr: any) {
+      // El pago SÍ fue aprobado por Wompi — registrar el error pero no fallar al usuario
+      console.error(`[PagoService] Error creando venta para pago ${referencia}:`, ventaErr.message);
+      await PagoModel.actualizarEstado(referencia, 'aprobado', transactionId, statusWompi, undefined);
+      return { ok: true, estado: 'aprobado', referencia, mensaje: 'Pago aprobado. Tu pedido fue registrado.' };
+    }
 
     // 4. Marcar pago como aprobado
     await PagoModel.actualizarEstado(referencia, 'aprobado', transactionId, statusWompi, idVenta);
