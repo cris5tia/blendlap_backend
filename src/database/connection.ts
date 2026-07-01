@@ -13,6 +13,7 @@ const poolOptions: PoolOptions = {
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
   connectTimeout: 10000,
+  timezone: '+00:00',
 };
 
 export const pool: Pool = mysql.createPool(poolOptions);

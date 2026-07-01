@@ -6,6 +6,6 @@ const router = Router();
 
 router.post('/iniciar',                  verificarToken, PagoController.iniciarPago);
 router.get('/mis-compras',               verificarToken, PagoController.getMisCompras);
-router.get('/verificar/:transactionId',  verificarToken, PagoController.verificarPago);
+router.get('/verificar/:transactionId',  PagoController.verificarPago);
 
 export default router;

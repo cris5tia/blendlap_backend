@@ -52,8 +52,7 @@ export class PagoService {
   }
 
   static async verificarPago(
-    transactionId: string,
-    id_usuario: number
+    transactionId: string
   ): Promise<{ ok: boolean; estado: string; referencia?: string; idVenta?: number; mensaje?: string }> {
     // 1. Verificar con Wompi API
     const res = await fetch(`${WOMPI_API}/transactions/${transactionId}`, {
@@ -97,8 +96,8 @@ export class PagoService {
       precio_unitario: i.precio_unitario,
     }));
 
-    const idVenta = await VentaModel.create(id_usuario, {
-      metodo_pago: 'otro', // cambiar a 'wompi' después de ALTER TABLE
+    const idVenta = await VentaModel.create(pago.id_usuario, {
+      metodo_pago: 'otro',
       detalles,
     });
 

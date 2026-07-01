@@ -54,7 +54,7 @@ export class AuthModel {
      WHERE u.correo_electronico = ?
      AND rc.codigo = ?
      AND rc.usado = 0
-     AND rc.expiracion > NOW()`,
+     AND rc.expiracion > UTC_TIMESTAMP()`,
             [correo, codigo]
         );
         return rows.length > 0;

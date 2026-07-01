@@ -145,6 +145,15 @@ export class AuthService {
         return { mensaje: 'Código de verificación enviado a tu correo electrónico' };
     }
 
+    // Solo verificar código (sin cambiar contraseña)
+    static async verificarCodigo(correo_electronico: string, codigo: string) {
+        const valido = await AuthModel.verificarCodigo(correo_electronico, codigo);
+        if (!valido) {
+            throw new Error('Código inválido o expirado');
+        }
+        return { valido: true };
+    }
+
     // Resetear contraseña con código
     static async resetearPassword(correo_electronico: string, codigo: string, nueva_contrasena: string) {
         const valido = await AuthModel.verificarCodigo(correo_electronico, codigo);

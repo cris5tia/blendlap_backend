@@ -86,6 +86,21 @@ export class AuthController {
         }
     }
 
+    // POST /api/auth/verificar-codigo
+    static async verificarCodigo(req: Request, res: Response): Promise<void> {
+        try {
+            const { correo_electronico, codigo } = req.body;
+            if (!correo_electronico || !codigo) {
+                res.status(400).json({ ok: false, mensaje: 'Correo y código son requeridos' });
+                return;
+            }
+            const resultado = await AuthService.verificarCodigo(correo_electronico, codigo);
+            res.status(200).json({ ok: true, ...resultado });
+        } catch (error: any) {
+            res.status(400).json({ ok: false, mensaje: error.message });
+        }
+    }
+
     // POST /api/auth/resetear-password
     static async resetearPassword(req: Request, res: Response): Promise<void> {
         try {

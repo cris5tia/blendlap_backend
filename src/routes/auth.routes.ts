@@ -10,8 +10,8 @@ router.post('/registro', AuthController.registro);
 router.post('/solicitar-verificacion-registro', AuthController.solicitarVerificacionRegistro);
 router.post('/completar-registro', AuthController.completarRegistro);
 router.get('/perfil', verificarToken, AuthController.perfil);
-router.put('/cambiar-password', AuthController.cambiarPassword);
 router.post('/solicitar-recuperacion', AuthController.solicitarRecuperacion);
+router.post('/verificar-codigo', AuthController.verificarCodigo);
 router.post('/resetear-password', AuthController.resetearPassword);
 router.post('/logout', verificarToken, (req, res) => {
   res.status(200).json({ ok: true, mensaje: 'Sesión cerrada correctamente' });

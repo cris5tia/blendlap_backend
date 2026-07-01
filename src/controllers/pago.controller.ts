@@ -37,18 +37,17 @@ export class PagoController {
     }
   }
 
-  // GET /api/pagos/verificar/:transactionId  (requiere auth)
+  // GET /api/pagos/verificar/:transactionId  (sin auth — el id_usuario viene del pago guardado)
   static async verificarPago(req: Request, res: Response): Promise<void> {
     try {
       const { transactionId } = req.params;
-      const id_usuario = req.usuario!.id_usuario;
 
       if (!transactionId) {
         res.status(400).json({ ok: false, mensaje: 'transactionId es requerido' });
         return;
       }
 
-      const resultado = await PagoService.verificarPago(transactionId, id_usuario);
+      const resultado = await PagoService.verificarPago(transactionId);
       res.status(resultado.ok ? 200 : 400).json(resultado);
     } catch (error: any) {
       res.status(500).json({ ok: false, mensaje: error.message });
