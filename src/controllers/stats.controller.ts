@@ -7,9 +7,11 @@ export class StatsController {
   static async getStatsBarbero(req: Request, res: Response): Promise<void> {
     try {
       const id_barbero = req.usuario!.id_usuario;
-      const ahora = new Date();
-      const mes = ahora.getMonth() + 1;
-      const año = ahora.getFullYear();
+      // Ajustar a hora colombiana (UTC-5) para que el mes coincida
+      // con las fechas almacenadas en BD, independiente del timezone del servidor.
+      const ahora = new Date(Date.now() - 5 * 60 * 60 * 1000);
+      const mes = ahora.getUTCMonth() + 1;
+      const año = ahora.getUTCFullYear();
 
       const [citasMes] = await pool.execute<RowDataPacket[]>(
         `SELECT COUNT(DISTINCT r.id_reserva) as total, COALESCE(SUM(rs.precio_cobrado),0) as ingresos
