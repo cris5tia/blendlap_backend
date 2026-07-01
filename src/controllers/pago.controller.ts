@@ -37,6 +37,27 @@ export class PagoController {
     }
   }
 
+  // GET /api/pagos/config-check  (diagnóstico — eliminar en producción estable)
+  static async configCheck(_req: Request, res: Response): Promise<void> {
+    const wompiApi   = process.env.WOMPI_API_URL   || 'https://sandbox.wompi.co/v1 (default)';
+    const pubKey     = process.env.WOMPI_PUBLIC_KEY || '(no configurada)';
+    const privKey    = process.env.WOMPI_PRIVATE_KEY;
+    const redirect   = process.env.WOMPI_REDIRECT_URL || '(no configurada)';
+    const integrity  = process.env.WOMPI_INTEGRITY_KEY;
+
+    const ambiente = pubKey.startsWith('pub_prod') ? 'PRODUCCION' :
+                     pubKey.startsWith('pub_test') ? 'SANDBOX'    : 'DESCONOCIDO';
+
+    res.json({
+      wompi_api_url:       wompiApi,
+      public_key_tipo:     pubKey.substring(0, 12) + '...',
+      ambiente,
+      private_key_ok:      !!privKey,
+      integrity_key_ok:    !!integrity,
+      redirect_url:        redirect,
+    });
+  }
+
   // GET /api/pagos/verificar/:transactionId  (sin auth — el id_usuario viene del pago guardado)
   static async verificarPago(req: Request, res: Response): Promise<void> {
     try {

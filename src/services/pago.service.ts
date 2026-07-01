@@ -60,7 +60,9 @@ export class PagoService {
     });
 
     if (!res.ok) {
-      return { ok: false, estado: 'error', mensaje: 'No se pudo consultar la transacción en Wompi' };
+      const errorBody = await res.text().catch(() => '');
+      console.error(`[Wompi] Error ${res.status} al verificar transacción ${transactionId}:`, errorBody);
+      return { ok: false, estado: 'error', mensaje: `No se pudo consultar la transacción en Wompi (HTTP ${res.status})` };
     }
 
     const data: any = await res.json();
