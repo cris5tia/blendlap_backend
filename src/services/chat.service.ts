@@ -12,8 +12,8 @@ import logger from '../utils/logger';
 const BARBERIA_INFO = {
   whatsapp: '318 123 4567',
   instagram: '@blendlap',
-  direccion: 'Blendlap Barbería — Bogotá, Colombia',
-  email: 'blendlap@gmail.com',
+  direccion: 'Cl. 48 # 19-55, Armenia, Quindío',
+  email: 'blendlap2026@gmail.com',
 };
 
 type ChatIntent = 'info' | 'create_reservation' | 'list_reservations';
