@@ -4,6 +4,7 @@ import { RowDataPacket } from 'mysql2';
 import { ReservaService } from '../services/reserva.service';
 import logger from './logger';
 import { CreditoService } from '../services/credito.service';
+import { enviarPush, eliminarSuscripcionExpirada } from './webpush';
 export const iniciarCronJobs = () => {
 
   cron.schedule('*/5 * * * *', async () => {
@@ -43,5 +44,69 @@ export const iniciarCronJobs = () => {
     }
   });
 
+  // Recordatorios push — cada 5 minutos
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      await enviarRecordatorios(60, 'recordatorio_enviado_2h',  '1 hora');
+      await enviarRecordatorios(30, 'recordatorio_enviado_30m', '30 minutos');
+    } catch (error) {
+      logger.error(`[CRON Push] Error: ${error}`);
+    }
+  });
+
   logger.info('Cron jobs iniciados');
 };
+
+async function enviarRecordatorios(
+  minutosAntes: number,
+  columnaFlag: 'recordatorio_enviado_2h' | 'recordatorio_enviado_30m',
+  textoTiempo: string
+): Promise<void> {
+  // Ventana de ±4 min para cubrir el intervalo de 5 min del cron.
+  // Los tiempos en DB están en hora colombiana (UTC-5), por eso se suma INTERVAL 5 HOUR.
+  const [reservas] = await pool.execute<RowDataPacket[]>(
+    `SELECT r.id_reserva, r.id_cliente,
+            u.nombre,
+            ps.endpoint, ps.p256dh, ps.auth, ps.expiration_time
+     FROM reserva r
+     JOIN usuario_rol u  ON u.id_usuario  = r.id_cliente
+     JOIN push_subscription ps ON ps.id_usuario = r.id_cliente
+     WHERE r.estado IN ('pendiente', 'confirmada')
+       AND r.\`${columnaFlag}\` = 0
+       AND TIMESTAMPDIFF(MINUTE, NOW(),
+             TIMESTAMP(r.fecha, r.hora) + INTERVAL 5 HOUR
+           ) BETWEEN ? AND ?`,
+    [minutosAntes - 4, minutosAntes + 4]
+  );
+
+  for (const r of reservas) {
+    try {
+      await enviarPush(r as any, {
+        notification: {
+          title: '🪒 Blendlap — Recordatorio de cita',
+          body: `Hola ${r.nombre}, recuerda que tienes una cita en ${textoTiempo}.`,
+          icon:  '/assets/icons/icon-192x192.png',
+          badge: '/assets/icons/icon-72x72.png',
+          data: {
+            onActionClick: {
+              default: { operation: 'navigateLastFocusedOrOpen', url: '/cliente/mis-citas' }
+            }
+          }
+        }
+      });
+
+      await pool.execute(
+        `UPDATE reserva SET \`${columnaFlag}\` = 1 WHERE id_reserva = ?`,
+        [r.id_reserva]
+      );
+
+      logger.info(`[Push] Recordatorio ${textoTiempo} → cliente ${r.id_cliente}, reserva ${r.id_reserva}`);
+    } catch (err: any) {
+      if (err?.statusCode === 410 || err?.statusCode === 404) {
+        await eliminarSuscripcionExpirada(r.endpoint);
+      } else {
+        logger.error(`[Push] Error enviando a cliente ${r.id_cliente}: ${err?.message}`);
+      }
+    }
+  }
+}

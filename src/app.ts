@@ -25,8 +25,11 @@ import statsRoutes from './routes/stats.routes';
 import creditoRoutes from './routes/credito.routes';
 import pagoRoutes from './routes/pago.routes';
 import { PagoModel } from './models/pago.model';
+import notificacionRoutes from './routes/notificacion.routes';
+import { initWebPush } from './utils/webpush';
 
 dotenv.config();
+initWebPush();
 
 const app: Application = express();
 
@@ -57,6 +60,7 @@ app.use('/api/horarios', horarioRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/creditos', creditoRoutes);
 app.use('/api/pagos', pagoRoutes);
+app.use('/api/notificaciones', notificacionRoutes);
 
 const healthPayload = () => ({
   status: 'ok',
